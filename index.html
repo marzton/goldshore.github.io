@@ -1,0 +1,73 @@
+from pathlib import Path
+
+# Recreate the HTML content since the code environment was reset
+html_content = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold Shore Labs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-r from-blue-900 to-indigo-600 text-white py-20 text-center">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4">Gold Shore Labs</h1>
+        <p class="text-lg md:text-xl max-w-2xl mx-auto">Innovating Security, Productivity, and Education Through Technology</p>
+    </section>
+
+    <!-- Services Section -->
+    <section class="py-16 px-4 max-w-6xl mx-auto">
+        <h2 class="text-3xl font-semibold text-center mb-10">Our Services</h2>
+        <div class="grid md:grid-cols-3 gap-8">
+            <div class="bg-white p-6 rounded shadow">
+                <h3 class="text-xl font-bold mb-2">Cybersecurity & Infrastructure</h3>
+                <p>Hardening, DNS, SSL, and secure deployment for individuals and businesses.</p>
+            </div>
+            <div class="bg-white p-6 rounded shadow">
+                <h3 class="text-xl font-bold mb-2">Automation & AI Integration</h3>
+                <p>From voice interfaces to scraping and GitHub bots, we accelerate productivity.</p>
+            </div>
+            <div class="bg-white p-6 rounded shadow">
+                <h3 class="text-xl font-bold mb-2">Mentorship & Nonprofit Impact</h3>
+                <p>Empowering underserved communities with tools, coaching, and digital resources.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="bg-gray-100 py-16 px-4">
+        <h2 class="text-3xl font-semibold text-center mb-10">Get in Touch</h2>
+        <form action="mailto:admin@goldshore.org" method="POST" enctype="text/plain" class="max-w-xl mx-auto bg-white p-8 rounded shadow">
+            <label class="block mb-4">
+                <span class="text-gray-700">Name</span>
+                <input type="text" name="name" required class="mt-1 block w-full border border-gray-300 rounded px-4 py-2">
+            </label>
+            <label class="block mb-4">
+                <span class="text-gray-700">Email</span>
+                <input type="email" name="email" required class="mt-1 block w-full border border-gray-300 rounded px-4 py-2">
+            </label>
+            <label class="block mb-4">
+                <span class="text-gray-700">Message</span>
+                <textarea name="message" rows="4" required class="mt-1 block w-full border border-gray-300 rounded px-4 py-2"></textarea>
+            </label>
+            <button type="submit" class="w-full bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700">Send</button>
+        </form>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white text-center py-6">
+        &copy; 2025 Gold Shore, LLC — All rights reserved.
+    </footer>
+
+</body>
+</html>
+"""
+
+# Save the file again
+file_path = Path("/mnt/data/index.html")
+file_path.write_text(html_content)
+
+file_path.name
