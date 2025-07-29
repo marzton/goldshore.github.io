@@ -1,0 +1,3 @@
+[submodule "~/Documents/Projects/goldshore.com-frontend/backend"]
+	path = ~/Documents/Projects/goldshore.com-frontend/backend
+	url = ~/Documents/Projects/goldshore.com-frontend/
