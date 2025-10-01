@@ -9,6 +9,8 @@ account_id = "<your_account_id>"
 PRODUCTION_ASSETS = "https://goldshore-org.pages.dev"
 PREVIEW_ASSETS = "https://goldshore-org-preview.pages.dev"
 DEV_ASSETS = "https://goldshore-org-dev.pages.dev"
+FORMSPREE_ENDPOINT = "https://formspree.io/f/xqkroexample"
+TURNSTILE_SECRET = "set-with-wrangler-secret"
 
 [env.production]
 zone_id = "<your_zone_id>"
