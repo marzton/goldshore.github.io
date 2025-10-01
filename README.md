@@ -7,6 +7,7 @@ Empowering communities through secure, scalable, and intelligent infrastructure.
 ## Deployment
 
 - Follow the [Cloudflare deployment playbook](docs/cloudflare-deployment.md) for split production/preview routing on `goldshore.org`.
+- Deploying on Netlify? The included `netlify.toml` skips the default `npm run build` step and publishes the static root so clones without Node tooling still pass CI.
 
 You are an expert JavaScript and Git assistant. Your role is to complete code inside the `$FILENAME` file where [CURSOR] appears. You must return the most likely full completion, without asking for clarification, summarizing, or greeting the user.
 
