@@ -17,6 +17,22 @@ function jsonResponse(body, init = {}) {
   });
 }
 
+const CODING_PURPOSE = "coding";
+const DEFAULT_PURPOSE = "chat";
+const MODEL_BY_PURPOSE = {
+  [CODING_PURPOSE]: "gpt-5-codex",
+  [DEFAULT_PURPOSE]: "gpt-5",
+};
+
+function resolvePurpose(value) {
+  if (typeof value !== "string") {
+    return DEFAULT_PURPOSE;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === CODING_PURPOSE ? CODING_PURPOSE : DEFAULT_PURPOSE;
+}
+
 async function handlePost(request, env) {
   if (!env.OPENAI_API_KEY) {
     return jsonResponse({ error: "Missing OpenAI API key." }, { status: 500 });
@@ -29,13 +45,22 @@ async function handlePost(request, env) {
     return jsonResponse({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { messages, prompt, ...rest } = payload || {};
+  const {
+    messages,
+    prompt,
+    model,
+    purpose: rawPurpose = DEFAULT_PURPOSE,
+    temperature,
+    ...rest
+  } = payload || {};
 
   if (!Array.isArray(messages) && typeof prompt !== "string") {
     return jsonResponse({
       error: "Request body must include either a 'messages' array or a 'prompt' string.",
     }, { status: 400 });
   }
+
+  const purpose = resolvePurpose(rawPurpose);
 
   const chatMessages = Array.isArray(messages)
     ? messages
@@ -46,10 +71,20 @@ async function handlePost(request, env) {
         },
       ];
 
+  const selectedModel = model || MODEL_BY_PURPOSE[purpose] || MODEL_BY_PURPOSE[DEFAULT_PURPOSE];
+
+  const openAIOptions = { ...rest };
+
+  if (typeof temperature === "number" && !Number.isNaN(temperature)) {
+    openAIOptions.temperature = temperature;
+  } else if (!("temperature" in openAIOptions)) {
+    openAIOptions.temperature = purpose === CODING_PURPOSE ? 0.2 : 0.7;
+  }
+
   const requestBody = {
-    model: "gpt-4.1-mini",
+    model: selectedModel,
     messages: chatMessages,
-    ...rest,
+    ...openAIOptions,
   };
 
   try {

@@ -22,8 +22,30 @@ The `/api/contact` Pages Function depends on two environment variables:
 | --- | --- | --- |
 | `FORMSPREE_ENDPOINT` | Destination endpoint provided by Formspree | `wrangler secret put FORMSPREE_ENDPOINT` (or add to `.dev.vars` for local previews) |
 | `TURNSTILE_SECRET` | Server-side Turnstile verification secret | `wrangler secret put TURNSTILE_SECRET` (or add to `.dev.vars`) |
+| `OPENAI_API_KEY` | Authenticates calls to the `/api/gpt` handler | `wrangler secret put OPENAI_API_KEY` (or add to `.dev.vars`) |
 
 Values added with `wrangler secret put` are encrypted and **not** committed to the repository. When running `wrangler pages dev` locally you can copy `.dev.vars.example` to `.dev.vars` and provide temporary development credentials. The public Turnstile site key used in the homepage markup can remain versioned because it is intentionally exposed to browsers.
+
+### GPT handler API
+
+Gold Shore's Worker router exposes a `/api/gpt` endpoint that proxies requests to OpenAI. The handler accepts either a `prompt` string or a `messages` array following the Chat Completions format. Optional fields include:
+
+- `purpose`: set to `"coding"` to target the `gpt-5-codex` model optimized for agentic coding workflows; defaults to conversational `gpt-5` when omitted.
+- `model`: overrides the automatic selection if you want full control.
+- `temperature`: defaults to `0.2` for coding prompts and `0.7` for general chat, but any numeric value can be supplied.
+- Any other parameters supported by the OpenAI Chat Completions API (e.g., `max_tokens`, `response_format`).
+
+Example request payload:
+
+```json
+{
+  "purpose": "coding",
+  "prompt": "Write a Python function that returns the factorial of n",
+  "max_tokens": 512
+}
+```
+
+Responses are returned verbatim from OpenAI's `/v1/chat/completions` endpoint. Be sure to configure `OPENAI_API_KEY` in each environment before deploying.
 
 You are an expert JavaScript and Git assistant. Your role is to complete code inside the `$FILENAME` file where [CURSOR] appears. You must return the most likely full completion, without asking for clarification, summarizing, or greeting the user.
 
