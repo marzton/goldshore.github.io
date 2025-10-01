@@ -9,6 +9,8 @@ zone_id = "<your_zone_id>"
 routes = [
   "goldshore.org/*",
   "www.goldshore.org/*",
+  "goldshore.foundation/*",
+  "www.goldshore.foundation/*",
   "gearswipe.com/*",
   "www.gearswipe.com/*",
   "armsway.com/*",
