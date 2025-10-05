@@ -75,6 +75,19 @@ wrangler d1 execute goldshore-db --file=packages/db/schema.sql
 
 Future Drizzle integration can live in `packages/db` alongside the schema.
 
+## Contact form configuration
+
+The public contact form posts to `/api/contact`, which forwards to Formspree after passing Cloudflare Turnstile validation. To finish wiring the production form:
+
+1. Log into the Formspree dashboard and copy the live form endpoint (for example `https://formspree.io/f/abcd1234`).
+2. Store the endpoint as a secret so the Worker can forward submissions:
+   ```bash
+   wrangler secret put FORMSPREE_ENDPOINT
+   ```
+3. If the site is also deployed via Netlify Functions, add the same value to the site configuration (`FORMSPREE_ENDPOINT`) so the function can read it locally.
+
+Once the secret is present, successful submissions will redirect visitors back to `/#contact-success` and fire a GA4 `contact_form_submit` event for verification.
+
 ## Notes
 
 - The Worker deploy relies on the Cloudflare Secrets Store; be sure the store already contains the mapped secrets (`OPENAI_API_KEY`, `OPENAI_PROJECT_ID`, `CF_API_TOKEN`).

@@ -273,7 +273,16 @@
         </div>
         <script>
           if (location.hash === '#contact-success') {
-            document.getElementById('contact-success').classList.remove('hidden');
+            var successEl = document.getElementById('contact-success');
+            if (successEl) {
+              successEl.classList.remove('hidden');
+            }
+            if (window.gtagTrack) {
+              window.gtagTrack('contact_form_submit', {
+                form_id: 'contactForm',
+                transport_type: 'redirect'
+              });
+            }
           }
         </script>
 
