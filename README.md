@@ -52,7 +52,7 @@ Example request payload:
 }
 ```
 
-Requests must include an `X-GPT-Proxy-Token` header whose value matches the `GPT_PROXY_TOKEN` secret; requests missing or presenting the wrong token are rejected before reaching OpenAI. Browsers will only receive a permissive CORS header when their `Origin` appears in `GPT_ALLOWED_ORIGINS`, ensuring non-whitelisted sites cannot piggyback on the proxy.
+Requests must include an `X-GPT-Proxy-Token` header whose value matches the `GPT_PROXY_TOKEN` secret; requests missing or presenting the wrong token are rejected before reaching OpenAI. Requests from origins outside `GPT_ALLOWED_ORIGINS` are short-circuited with `403 Forbidden` before the proxy ever talks to OpenAI, ensuring non-whitelisted sites cannot piggyback on the proxy.
 
 Responses are returned verbatim from OpenAI's `/v1/chat/completions` endpoint. Be sure to configure both `OPENAI_API_KEY` and `GPT_PROXY_TOKEN`, and update `GPT_ALLOWED_ORIGINS` in each environment before deploying.
 

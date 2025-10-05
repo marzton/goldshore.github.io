@@ -16,18 +16,20 @@ function parseAllowedOrigins(env) {
     .filter(Boolean);
 }
 
-function resolveAllowedOrigin(request, env) {
-  const requestOrigin = request.headers.get("Origin");
-  if (typeof requestOrigin !== "string" || requestOrigin.trim() === "") {
-    return null;
-  }
-
-  const allowedOrigins = parseAllowedOrigins(env);
-  if (allowedOrigins.length === 0) {
+function resolveAllowedOrigin(requestOrigin, allowedOrigins) {
+  if (typeof requestOrigin !== "string") {
     return null;
   }
 
   const normalizedOrigin = requestOrigin.trim();
+  if (normalizedOrigin === "") {
+    return null;
+  }
+
+  if (!Array.isArray(allowedOrigins) || allowedOrigins.length === 0) {
+    return null;
+  }
+
   for (const allowed of allowedOrigins) {
     if (allowed === "*" || allowed === normalizedOrigin) {
       return normalizedOrigin;
@@ -186,7 +188,20 @@ async function handlePost(request, env, allowedOrigin) {
 
 export default {
   async fetch(request, env) {
-    const allowedOrigin = resolveAllowedOrigin(request, env);
+    const requestOriginHeader = request.headers.get("Origin");
+    const allowedOrigins = parseAllowedOrigins(env);
+    const allowedOrigin = resolveAllowedOrigin(requestOriginHeader, allowedOrigins);
+    const hasAllowedOriginsConfigured = allowedOrigins.length > 0;
+    const normalizedRequestOrigin =
+      typeof requestOriginHeader === "string" ? requestOriginHeader.trim() : "";
+
+    if (hasAllowedOriginsConfigured && normalizedRequestOrigin && !allowedOrigin) {
+      return jsonResponse(
+        { error: "Origin not allowed." },
+        { status: 403 },
+        normalizedRequestOrigin,
+      );
+    }
 
     if (request.method === "OPTIONS") {
       return new Response(null, {
