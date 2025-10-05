@@ -72,6 +72,50 @@ await fetch("/api/gpt", {
 });
 ```
 
+## Cloudflare Zero Trust GitHub Access integration
+
+Gold Shore Labs authenticates internal apps with Cloudflare Access using GitHub as an identity provider. When rotating secrets or onboarding new environments, follow these steps to re-establish the OAuth handshake:
+
+1. Sign in to GitHub and navigate to **Settings → Developer settings → OAuth Apps**.
+2. Register a new OAuth application (or update the existing one) using the team domain `https://goldshore.cloudflareaccess.com` for the homepage URL.
+3. Set the authorization callback URL to `https://goldshore.cloudflareaccess.com/cdn-cgi/access/callback`.
+4. Note the generated **Client ID** and **Client Secret**; rotate the secret if none is available.
+5. In Cloudflare Zero Trust, open **Settings → Authentication → Login methods** and add or edit the GitHub provider.
+6. Paste the GitHub Client ID into the **App ID** field and the Client Secret into **Client secret**, then save.
+7. Use the **Test** button next to the GitHub login method to confirm end-to-end authentication (log into GitHub first if MFA is enabled).
+
+For API-driven deployments, the following environment values are required by automation:
+
+```
+GH_APP_ID=<numeric GitHub App ID>
+GH_APP_INSTALLATION_ID=<installation identifier>
+GH_CLIENT_ID=<public OAuth client ID>
+GH_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+```
+
+Update these secrets anywhere they are referenced (GitHub Actions, Cloudflare Workers, or Pages projects) whenever the OAuth app is rotated.
+
+### Cloudflare API credentials
+
+GitHub Actions needs a scoped Cloudflare API token to run the `Deploy to Cloudflare` workflow end-to-end. Create the token from the [Cloudflare dashboard](https://dash.cloudflare.com/profile/api-tokens) with the following permissions:
+
+- **Account** → **Cloudflare Workers** → *Edit*
+- **Account** → **Cloudflare Pages** → *Edit*
+- **Zone** → **DNS** → *Edit* (limit the zone scope to `goldshore.org`)
+
+After generating the token, add or update these repository secrets under **Settings → Secrets and variables → Actions**:
+
+| Secret name | Value | Notes |
+| --- | --- | --- |
+| `CF_API_TOKEN` | Newly generated API token | Required for Workers, Pages, and DNS automation |
+| `CF_ACCOUNT_ID` | Account ID from the Cloudflare dashboard | Visible in **Workers & Pages → Overview** |
+| `CF_ZONE_ID` | Zone identifier for `goldshore.org` | Available in the zone’s **Overview** tab |
+| `CF_DNS_TARGET_PRODUCTION` | DNS content for `api.goldshore.org` | Use the worker router hostname or origin IP |
+| `CF_DNS_TARGET_PREVIEW` | DNS content for `api-preview.goldshore.org` | Typically the preview worker hostname |
+| `CF_DNS_TARGET_DEV` | DNS content for `api-dev.goldshore.org` | Typically the development worker hostname |
+
+With the secrets in place you can rerun **Actions → Deploy to Cloudflare → Run workflow**, selecting the desired environment. Wrangler will deploy the worker, publish the Pages artifact, and upsert DNS records without exiting early when all secrets are populated.
+
 ## Swiss-Army Critique Pipeline
 
 The `critique-worker/` folder contains a Cloudflare Workers + Queues + R2 pipeline that turns inbound email into automated website, portfolio, or social critiques. High-level flow:
