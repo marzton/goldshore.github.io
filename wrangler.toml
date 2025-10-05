@@ -54,3 +54,5 @@ ASSETS_ORIGIN = "https://goldshore-org-dev.pages.dev"
 [[analytics_engine_datasets]]
 binding = "GOLD_ANALYTICS"
 dataset = "goldshore-events"
+# D1 database bindings are temporarily omitted (Path B) until the
+# goldshore-db instance is provisioned with a real UUID.

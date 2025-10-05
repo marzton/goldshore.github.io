@@ -104,14 +104,14 @@ jobs:
             echo "dns_target=${DNS_TARGET}" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Install Wrangler CLI
-        run: npm install --global wrangler@latest
+      - name: Install Node dependencies
+        run: npm ci
 
       - name: Deploy Worker router
-        run: wrangler deploy --env ${{ steps.plan.outputs.environment }}
+        run: npx wrangler deploy --env ${{ steps.plan.outputs.environment }}
 
       - name: Deploy Pages artifact
-        run: wrangler pages deploy ./ --project-name=${PAGES_PROJECT} --branch ${{ steps.plan.outputs.branch }}
+        run: npx wrangler pages deploy ./ --project-name=${PAGES_PROJECT} --branch ${{ steps.plan.outputs.branch }}
 
       - name: Upsert Cloudflare DNS record
         if: ${{ steps.plan.outputs.dns_target != '' }}

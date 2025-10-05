@@ -1,0 +1,15 @@
+{
+  "name": "goldshore.github.io",
+  "version": "1.0.0",
+  "description": "Gold Shore Labs deployment utilities",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "cf:deploy:prod": "wrangler deploy --env=production",
+    "cf:deploy:preview": "wrangler deploy --env=preview",
+    "cf:deploy:dev": "wrangler deploy --env=dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.42.0"
+  }
+}
