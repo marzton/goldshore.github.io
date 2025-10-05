@@ -23,6 +23,8 @@ The `/api/contact` Pages Function depends on two environment variables:
 | `FORMSPREE_ENDPOINT` | Destination endpoint provided by Formspree | `wrangler secret put FORMSPREE_ENDPOINT` (or add to `.dev.vars` for local previews) |
 | `TURNSTILE_SECRET` | Server-side Turnstile verification secret | `wrangler secret put TURNSTILE_SECRET` (or add to `.dev.vars`) |
 | `OPENAI_API_KEY` | Authenticates calls to the `/api/gpt` handler | `wrangler secret put OPENAI_API_KEY` (or add to `.dev.vars`) |
+| `GPT_PROXY_TOKEN` | Shared secret browsers must send when calling `/api/gpt` | `wrangler secret put GPT_PROXY_TOKEN` (or add to `.dev.vars`) |
+| `GPT_ALLOWED_ORIGINS` | Comma-separated list of origins that receive CORS access | Define in `wrangler.toml` (`[vars]`) or add to `.dev.vars` |
 
 Values added with `wrangler secret put` are encrypted and **not** committed to the repository. When running `wrangler pages dev` locally you can copy `.dev.vars.example` to `.dev.vars` and provide temporary development credentials. The public Turnstile site key used in the homepage markup can remain versioned because it is intentionally exposed to browsers.
 
@@ -50,7 +52,25 @@ Example request payload:
 }
 ```
 
-Responses are returned verbatim from OpenAI's `/v1/chat/completions` endpoint. Be sure to configure `OPENAI_API_KEY` in each environment before deploying.
+Requests must include an `X-GPT-Proxy-Token` header whose value matches the `GPT_PROXY_TOKEN` secret; requests missing or presenting the wrong token are rejected before reaching OpenAI. Browsers will only receive a permissive CORS header when their `Origin` appears in `GPT_ALLOWED_ORIGINS`, ensuring non-whitelisted sites cannot piggyback on the proxy.
+
+Responses are returned verbatim from OpenAI's `/v1/chat/completions` endpoint. Be sure to configure both `OPENAI_API_KEY` and `GPT_PROXY_TOKEN`, and update `GPT_ALLOWED_ORIGINS` in each environment before deploying.
+
+Example `fetch` call from the frontend:
+
+```js
+await fetch("/api/gpt", {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    "x-gpt-proxy-token": "<your-matched-secret>",
+  },
+  body: JSON.stringify({
+    prompt: "Write a Python function that returns the factorial of n",
+    purpose: "coding",
+  }),
+});
+```
 
 ## Swiss-Army Critique Pipeline
 
