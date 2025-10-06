@@ -7,12 +7,71 @@ type Env = {
   DEV_ASSETS?: string;
 };
 
+const DEFAULT_ORIGINS = {
+  production: 'https://goldshore-org.pages.dev',
+  preview: 'https://goldshore-org-preview.pages.dev',
+  dev: 'https://goldshore-org-dev.pages.dev'
+} as const;
+
+const splitCandidates = (raw: string): string[] => raw
+  .split(/[\n,]/)
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+const normaliseOrigin = (candidate: string): string | null => {
+  const trimmed = candidate.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.includes('*')) {
+    // Wildcard origins are placeholders (e.g. "*-goldshore-org...") that cannot
+    // be dereferenced directly by the proxy. Skip them and continue searching.
+    return null;
+  }
+
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+
+  try {
+    const url = new URL(withScheme);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+
+    const pathname = url.pathname.endsWith('/') && url.pathname !== '/'
+      ? url.pathname.slice(0, -1)
+      : url.pathname;
+
+    return `${url.protocol}//${url.host}${pathname}`;
+  } catch (error) {
+    return null;
+  }
+};
+
+const selectOrigin = (raw: string | undefined, fallback: string): string => {
+  if (!raw) {
+    return fallback;
+  }
+
+  const candidates = splitCandidates(raw);
+  for (const candidate of candidates) {
+    const normalised = normaliseOrigin(candidate);
+    if (normalised) {
+      return normalised;
+    }
+  }
+
+  return fallback;
+};
+
 const mapHostToAssets = (host: string, env: Env): string =>
   host.startsWith('preview.')
-    ? env.PREVIEW_ASSETS ?? 'https://goldshore-org-preview.pages.dev'
+    ? selectOrigin(env.PREVIEW_ASSETS, DEFAULT_ORIGINS.preview)
     : host.startsWith('dev.')
-      ? env.DEV_ASSETS ?? 'https://goldshore-org-dev.pages.dev'
-      : env.PRODUCTION_ASSETS ?? 'https://goldshore-org.pages.dev';
+      ? selectOrigin(env.DEV_ASSETS, DEFAULT_ORIGINS.dev)
+      : selectOrigin(env.PRODUCTION_ASSETS, DEFAULT_ORIGINS.production);
 
 const buildCorsHeaders = (origin: string): Headers => {
   const headers = new Headers();

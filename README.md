@@ -93,3 +93,4 @@ Once the secret is present, successful submissions will redirect visitors back t
 - The Worker deploy relies on the Cloudflare Secrets Store; be sure the store already contains the mapped secrets (`OPENAI_API_KEY`, `OPENAI_PROJECT_ID`, `CF_API_TOKEN`).
 - Cloudflare Access automation defaults to allowing `@goldshore.org` addresses. Adjust `ALLOWED_DOMAIN` when running the script if your allowlist differs.
 - The AI maintenance workflow is conservative and only opens pull requests when copy changes are suggested. Merge decisions stay in human hands.
+- Worker asset environment variables (`PRODUCTION_ASSETS`, `PREVIEW_ASSETS`, `DEV_ASSETS`) accept either a single origin or a comma-/newline-separated list. The router skips wildcard placeholders (such as `*-goldshore-org...`), selects the first valid HTTPS origin, and automatically prepends `https://` when a scheme is omitted so you can rotate between legacy and renamed domains without downtime.

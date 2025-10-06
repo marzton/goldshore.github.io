@@ -17,7 +17,49 @@ export default {
       return GPTHandler.fetch(request, env, ctx);
     }
 
-    const targetOrigin = env.ASSETS_ORIGIN || env.PRODUCTION_ASSETS || "https://goldshore-org.pages.dev";
+    const splitCandidates = (raw) => raw
+      .split(/[\n,]/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    const parseOriginList = (value, fallback) => {
+      if (!value) {
+        return fallback;
+      }
+
+      const candidates = splitCandidates(value);
+      for (const candidate of candidates) {
+        if (candidate.includes("*")) {
+          // Wildcard placeholders (e.g. "*-goldshore-org...") can't be fetched
+          // directly by the proxy, so skip them.
+          continue;
+        }
+
+        const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)
+          ? candidate
+          : `https://${candidate}`;
+
+        try {
+          const url = new URL(withScheme);
+          if (url.protocol !== "http:" && url.protocol !== "https:") {
+            continue;
+          }
+
+          const pathname = url.pathname.endsWith("/") && url.pathname !== "/"
+            ? url.pathname.slice(0, -1)
+            : url.pathname;
+
+          return `${url.protocol}//${url.host}${pathname}`;
+        } catch (error) {
+          // Ignore invalid candidates and continue to the next option.
+        }
+      }
+
+      return fallback;
+    };
+
+    const targetOrigin = env.ASSETS_ORIGIN
+      || parseOriginList(env.PRODUCTION_ASSETS, "https://goldshore-org.pages.dev");
 
     try {
       const origin = new URL(targetOrigin);
