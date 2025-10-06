@@ -1,0 +1,27 @@
+---
+import "../../styles/theme.css";
+import Header from "../../components/Header.astro";
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Gold Shore Admin</title>
+    <meta name="robots" content="noindex" />
+    <meta name="description" content="Access-controlled admin area for Gold Shore operations." />
+    <link rel="canonical" href="https://goldshore.org/admin" />
+  </head>
+  <body>
+    <Header />
+    <main class="container" style="padding-block: clamp(40px, 6vw, 80px);">
+      <h1 class="glow">Admin</h1>
+      <p>
+        This area is intended for Gold Shore operators. Protect this path with Cloudflare Access to restrict visibility to
+        approved accounts.
+      </p>
+      <p>
+        Suggested modules once authenticated: engagement tracker, publication queue, and DNS/cache controls.
+      </p>
+    </main>
+  </body>
+</html>

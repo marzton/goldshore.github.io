@@ -1,0 +1,38 @@
+---
+import "../styles/theme.css";
+import Header from "../components/Header.astro";
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Contact Gold Shore</title>
+    <meta
+      name="description"
+      content="Reach the Gold Shore team to scope engagements, request access codes, or coordinate launch support."
+    />
+    <link rel="canonical" href="https://goldshore.org/contact" />
+  </head>
+  <body>
+    <Header />
+    <main class="container" style="padding-block: clamp(40px, 6vw, 80px);">
+      <h1 class="glow">Contact</h1>
+      <p>Drop a note and the team will respond with the right channel to continue.</p>
+      <form method="post" action="https://formspree.io/f/placeholder" class="surface" style="padding: 24px; display: grid; gap: 16px;">
+        <label>
+          <span>Name</span>
+          <input type="text" name="name" required style="padding: 12px; border-radius: 12px; border: none; width: 100%;" />
+        </label>
+        <label>
+          <span>Email</span>
+          <input type="email" name="email" required style="padding: 12px; border-radius: 12px; border: none; width: 100%;" />
+        </label>
+        <label>
+          <span>Message</span>
+          <textarea name="message" required rows="4" style="padding: 12px; border-radius: 12px; border: none; width: 100%;"></textarea>
+        </label>
+        <button class="btn" type="submit">Send message</button>
+      </form>
+    </main>
+  </body>
+</html>

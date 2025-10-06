@@ -1,0 +1,27 @@
+:root{
+  --bg:#0A0F1A;
+  --bg-2:#10172A;
+  --fg:#F6F8FC;
+  --muted:#AAB4C4;
+  --violet:#5A4B81;
+  --lav:#B7A8D9;
+  --eggplant:#2D1E48;
+  --white:#fff;
+  --black:#000;
+  --radius:14px;
+  --radius-lg:24px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --dur:.45s;
+  --shadow:0 18px 50px rgba(0,0,0,.45);
+  --container:1200px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif}
+a{color:#CFE3FF;text-decoration:none}
+a:hover{color:#fff}
+.container{max-width:var(--container);margin:0 auto;padding:clamp(16px,4vw,40px)}
+.surface{background:rgba(20,24,40,.55);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius)}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:12px 18px;border-radius:12px;background:#fff;color:#0D1220;font-weight:700;box-shadow:0 10px 28px rgba(255,255,255,.08);transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
+.btn:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(255,255,255,.15)}
+.btn.ghost{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18)}
+.glow{text-shadow:0 0 10px rgba(255,255,255,.30),0 0 30px rgba(136,120,200,.18)}

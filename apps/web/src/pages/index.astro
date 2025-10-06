@@ -1,43 +1,28 @@
 ---
-const hero = {
-  title: "Tools for real traders.",
-  subtitle: "We build market tools that respect capital and context.",
-  cta: { text: "Explore the suite", href: "/products" }
-};
-const year = new Date().getFullYear();
+import "../styles/theme.css";
+import Header from "../components/Header.astro";
+import Hero from "../components/Hero.astro";
 ---
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
-    <link rel="stylesheet" href="/styles/theme.css" />
-    <title>GoldShore</title>
+    <title>Gold Shore — Shaping Waves</title>
+    <meta
+      name="description"
+      content="Gold Shore builds market tools and narrative strategy — moving markets while protecting reputation."
+    />
+    <link rel="canonical" href="https://goldshore.org/" />
   </head>
   <body>
-    <header class="container grid grid-2">
-      <div>
-        <h1>{hero.title}</h1>
-        <p style="color:var(--muted)">{hero.subtitle}</p>
-        <a class="btn" href={hero.cta.href}>{hero.cta.text}</a>
+    <Header />
+    <Hero>
+      <h1 class="glow">Shaping waves that move markets — and reputations.</h1>
+      <p>Glass-and-light aesthetics with depth: responsive, fast, and calm.</p>
+      <div class="cta">
+        <a class="btn" href="/services">Explore Services</a>
+        <a class="btn ghost" href="/contact">Work With Us</a>
       </div>
-      <div class="card">Charts/CTA image slot</div>
-    </header>
-
-    <main class="container grid grid-2">
-      <section class="card">
-        <h2>Blog</h2>
-        <p>Insights, research, and release notes.</p>
-        <a href="/blog">Read the blog →</a>
-      </section>
-      <section class="card">
-        <h2>Store</h2>
-        <p>Pro tools and add-ons.</p>
-        <a href="/store">Go to store →</a>
-      </section>
-    </main>
-
-    <footer class="container" style="opacity:.7;margin-top:40px">
-      <small>© {year} GoldShore</small>
-    </footer>
+    </Hero>
   </body>
 </html>
