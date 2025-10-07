@@ -40,7 +40,7 @@ jobs:
         run: npm run build:web
 
       - name: Deploy Worker (${{ matrix.environment }})
-        run: npx wrangler deploy --env=${{ matrix.environment }} --minify
+        run: npx wrangler deploy --config wrangler.worker.toml --env=${{ matrix.environment }} --minify
 
       - name: Rebuild Access (goldshore)
         env:

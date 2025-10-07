@@ -15,7 +15,8 @@ goldshore/
 ├─ infra/
 │  └─ scripts/             # DNS & Access automation
 ├─ .github/workflows/      # Deploy / maintenance CI
-├─ wrangler.toml           # Worker + bindings configuration
+├─ wrangler.toml           # Cloudflare Pages configuration
+├─ wrangler.worker.toml    # Worker + bindings configuration
 └─ package.json            # npm workspaces + shared tooling
 ```
 
@@ -60,17 +61,26 @@ These secrets are consumed by the Worker (via the Secrets Store binding) and Git
    ```
 3. Deploy the Worker preview when ready:
    ```bash
-   npx wrangler dev
+   npx wrangler dev --config wrangler.worker.toml
    ```
 
 The image optimisation script expects source assets in `apps/web/public/images/raw` and emits AVIF/WEBP variants into `apps/web/public/images/optimized`.
 
 ## Database setup
 
-Provision a Cloudflare D1 database named `goldshore-db` and copy its ID into `wrangler.toml` under the `[[d1_databases]]` block. Initial seed tables can be created by running:
+Provision a Cloudflare D1 database named `goldshore-db`. When you're ready to wire it to the Worker, add a `[[d1_databases]]` block to `wrangler.worker.toml` (an example is shown below) and replace `DATABASE_ID` with the value from the Cloudflare dashboard. Initial seed tables can be created by running:
 
 ```bash
 wrangler d1 execute goldshore-db --file=packages/db/schema.sql
+```
+
+Example Worker binding block:
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "goldshore-db"
+database_id = "DATABASE_ID"
 ```
 
 Future Drizzle integration can live in `packages/db` alongside the schema.
@@ -78,5 +88,6 @@ Future Drizzle integration can live in `packages/db` alongside the schema.
 ## Notes
 
 - The Worker deploy relies on the Cloudflare Secrets Store; be sure the store already contains the mapped secrets (`OPENAI_API_KEY`, `OPENAI_PROJECT_ID`, `CF_API_TOKEN`).
+- Worker-related commands (including the GitHub Actions deploy workflow) should pass `--config wrangler.worker.toml` so they continue to load bindings and routes, while Cloudflare Pages reads the root `wrangler.toml` for its build output directory.
 - Cloudflare Access automation defaults to allowing `@goldshore.org` addresses. Adjust `ALLOWED_DOMAIN` when running the script if your allowlist differs.
 - The AI maintenance workflow is conservative and only opens pull requests when copy changes are suggested. Merge decisions stay in human hands.
