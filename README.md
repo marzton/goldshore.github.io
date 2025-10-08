@@ -1,24 +1,25 @@
-# GoldShore platform
+# Gold Shore monorepo
 
-This repository hosts GoldShore's Worker router, Astro front-end, D1 schema, and infrastructure automation. The layout is organised as a lightweight monorepo so the Worker, web app, database schema, and supporting tooling can ship together through GitHub Actions.
+This repository follows the Gold Shore agent playbook: a lightweight monorepo that keeps the Astro site, Cloudflare Worker, and
+infrastructure scripts in one place so the CI agent can ship predictable deployments.
 
-## Repository layout
+## Layout
 
 ```
 goldshore/
 ├─ apps/
-│  ├─ api-router/          # Cloudflare Worker entry point
-│  └─ web/                 # Astro site, vanilla CSS theme
+│  ├─ api-router/      # Cloudflare Worker router
+│  └─ web/             # Astro marketing site
 ├─ packages/
 │  └─ image-tools/         # Sharp image optimisation scripts
 ├─ infra/
-│  └─ scripts/             # DNS & Access automation
-├─ .github/workflows/      # Deploy / maintenance CI
-├─ wrangler.toml           # Worker + bindings configuration
-└─ package.json            # npm workspaces + shared tooling
+│  └─ scripts/         # DNS automation
+├─ .github/workflows/  # Deploy + QA pipelines
+├─ wrangler.toml       # Worker configuration
+└─ package.json        # Workspace scripts for agents
 ```
 
-Key entry points:
+### Key files
 
 - `apps/api-router/src/router.ts` — Worker proxy that selects the correct asset origin per host and stamps immutable cache headers for assets.
 - `apps/web/src` — Astro site with a shared theme (`styles/theme.css`), reusable components, and hero animation.
@@ -36,9 +37,16 @@ For a deeper end-to-end playbook that covers design, accessibility, deployment, 
 | `ai_maint.yml` | Runs linting, Lighthouse smoke tests, and guarded AI copy suggestions that open PRs. | Nightly (05:00 UTC) or manual run |
 | `sync_dns.yml` | Manually replays the DNS upsert script. | Manual run |
 
-## Prerequisites
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the Astro dev server from `apps/web`. |
+| `npm run build` | Optimise images then build the production site. |
+| `npm run deploy:prod` | Deploy the Worker to the production environment. |
+| `npm run deploy:preview` | Deploy the Worker to the preview environment. |
+| `npm run deploy:dev` | Deploy the Worker to the dev environment. |
+| `npm run qa` | Execute the local QA helper defined in `.github/workflows/local-qa.mjs`. |
 
-Configure the following repository secrets under **Settings → Secrets and variables → Actions**:
+## GitHub Actions
 
 - `CF_ACCOUNT_ID`
 - `CF_API_TOKEN`
@@ -67,32 +75,25 @@ These secrets are consumed by the Worker (via the Secrets Store binding) and Git
    npm run deploy:preview
    ```
 
-The image optimisation script expects source assets in `apps/web/public/images/raw` and emits AVIF/WEBP variants into `apps/web/public/images/optimized`.
+## Secrets required in CI
 
-## Database setup
+Add the following secrets under **Settings → Secrets and variables → Actions**:
 
-Provision a Cloudflare D1 database named `goldshore-db` and copy its ID into `wrangler.toml` under the `[[d1_databases]]` block. Initial seed tables can be created by running:
+- `CF_API_TOKEN`
+- `CF_ACCOUNT_ID`
 
-```bash
-wrangler d1 execute goldshore-db --file=packages/db/schema.sql
-```
-
-Future Drizzle integration can live in `packages/db` alongside the schema.
-
-## Contact form configuration
+If either secret is missing the deploy workflow will fail early, prompting the operator to add them before proceeding.
 
 The public contact form posts to Formspree after passing Cloudflare Turnstile validation. To finish wiring the production form:
 
-1. Log into the Formspree dashboard and copy the live form endpoint (for example `https://formspree.io/f/abcd1234`).
-2. Store the endpoint as a secret so the Worker can forward submissions:
-   ```bash
-   wrangler secret put FORMSPREE_ENDPOINT
-   ```
-3. If the site is also deployed via Netlify Functions, add the same value to the site configuration (`FORMSPREE_ENDPOINT`) so the function can read it locally.
+The Worker expects Cloudflare Pages projects mapped to:
 
-Once the secret is present, successful submissions will redirect visitors back to `/#contact-success` and fire a GA4 `contact_form_submit` event for verification.
+- `goldshore-org.pages.dev` for production
+- `goldshore-org-preview.pages.dev` for preview
+- `goldshore-org-dev.pages.dev` for development
 
-## Notes
+The DNS upsert script keeps these hostnames pointed at the correct Pages project using proxied CNAME records for:
+`goldshore.org`, `www.goldshore.org`, `preview.goldshore.org`, and `dev.goldshore.org`.
 
 - The Worker deploy relies on the Cloudflare Secrets Store; be sure the store already contains the mapped secrets (`OPENAI_API_KEY`, `OPENAI_PROJECT_ID`, `CF_API_TOKEN`).
 - Cloudflare Access automation defaults to allowing `@goldshore.org` addresses. Adjust `ALLOWED_DOMAIN` when running the script if your allowlist differs.
