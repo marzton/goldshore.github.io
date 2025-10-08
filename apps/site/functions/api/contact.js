@@ -62,7 +62,10 @@ export async function onRequestPost({ request, env }) {
         const requestUrl = new URL(request.url);
         const redirectUrl = new URL(redirectRaw, requestUrl);
 
-        if (redirectUrl.origin === requestUrl.origin && !redirectRaw.startsWith('//')) {
+        if (
+          redirectUrl.origin === requestUrl.origin &&
+          !redirectUrl.pathname.startsWith('//')
+        ) {
           redirect = `${redirectUrl.pathname}${redirectUrl.search}${redirectUrl.hash}` || '/';
         }
       } catch (_) {
