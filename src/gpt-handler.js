@@ -33,11 +33,23 @@ function jsonResponse(body, init = {}, origin = null) {
   }
 
   headers.set("content-type", "application/json");
+  return new Response(JSON.stringify(body), { ...init, headers });
+}
 
-  return new Response(JSON.stringify(body), {
-    ...init,
-    headers,
-  });
+function errorResponse(message, status = 400, details, origin) {
+  const payload = { error: message };
+  if (details !== undefined) {
+    payload.details = details;
+  }
+  return jsonResponse(payload, { status }, origin);
+}
+
+function parseAllowedOrigins(env) {
+  const raw = env.GPT_ALLOWED_ORIGINS ?? env.ALLOWED_ORIGINS ?? "";
+  return raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value !== "");
 }
 
 function validateOrigin(request, env) {
@@ -102,6 +114,21 @@ async function handlePost(request, env, origin) {
     );
   }
 
+  const providedSecret = request.headers.get("x-api-key");
+  if (providedSecret !== env.GPT_PROXY_SECRET) {
+    return jsonResponse(request, { error: "Unauthorized." }, { status: 401 });
+function requireProxyToken(env) {
+  const token = env.GPT_PROXY_TOKEN ?? env.GPT_ACCESS_TOKEN ?? null;
+  if (!token) {
+    return {
+      ok: false,
+      status: 500,
+      message: "GPT proxy access token not configured.",
+    };
+  }
+  return { ok: true, token };
+}
+
   let payload;
   try {
     payload = await request.json();
@@ -113,28 +140,147 @@ async function handlePost(request, env, origin) {
     );
   }
 
-  const { messages, prompt, ...rest } = payload || {};
+  const authorization = request.headers.get("authorization");
+  if (!authorization || !authorization.toLowerCase().startsWith("bearer ")) {
+    return {
+      ok: false,
+      status: 401,
+      message: "Missing or invalid Authorization header.",
+    };
+  }
+
+  const providedToken = authorization.slice(7).trim();
+  if (providedToken !== tokenResult.token) {
+    return {
+      ok: false,
+      status: 401,
+      message: "Unauthorized.",
+    };
+  }
+
+  return { ok: true };
+}
+
+function normalizeMessage(message, index) {
+  if (message === null || typeof message !== "object" || Array.isArray(message)) {
+    throw new Error(`messages[${index}] must be an object.`);
+  }
+
+  const { role, content, name } = message;
+
+  if (typeof role !== "string" || role.trim() === "") {
+    throw new Error(`messages[${index}].role must be a non-empty string.`);
+  }
+
+  if (content === undefined) {
+    throw new Error(`messages[${index}].content is required.`);
+  }
+
+  let normalizedContent;
+  if (typeof content === "string") {
+    if (content.trim() === "") {
+      throw new Error(`messages[${index}].content must not be empty.`);
+    }
+    normalizedContent = content;
+  } else if (Array.isArray(content)) {
+    const parts = content
+      .map((item, partIndex) => {
+        if (item && typeof item === "object" && typeof item.text === "string") {
+          return item.text;
+        }
+        throw new Error(
+          `messages[${index}].content[${partIndex}] must be a text object when providing an array.`,
+        );
+      })
+      .join("\n");
+    if (parts.trim() === "") {
+      throw new Error(`messages[${index}].content must include non-empty text.`);
+    }
+    normalizedContent = parts;
+  } else if (content && typeof content === "object" && typeof content.text === "string") {
+    if (content.text.trim() === "") {
+      throw new Error(`messages[${index}].content.text must not be empty.`);
+    }
+    normalizedContent = content.text;
+  } else {
+    throw new Error(`messages[${index}].content must be a string or text object.`);
+  }
+
+  const normalized = {
+    role: role.trim(),
+    content: normalizedContent,
+  };
+
+  if (name !== undefined) {
+    if (typeof name !== "string" || name.trim() === "") {
+      throw new Error(`messages[${index}].name must be a non-empty string when provided.`);
+    }
+    normalized.name = name.trim();
+  }
+
+  return normalized;
+}
+
+function buildChatCompletionPayload(payload) {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Request body must be a JSON object.");
+  }
+
+  const { model = DEFAULT_MODEL, messages, prompt, ...rest } = payload;
 
   if (!Array.isArray(messages) && typeof prompt !== "string") {
-    return jsonResponse({
+    return jsonResponse(request, {
       error: "Request body must include either a 'messages' array or a 'prompt' string.",
     }, { status: 400 }, origin);
   }
 
-  const chatMessages = Array.isArray(messages)
+  const normalizedMessages = (Array.isArray(messages) && messages.length > 0
     ? messages
     : [
         {
           role: "user",
           content: prompt,
         },
-      ];
+      ]
+  ).map((message, index) => normalizeMessage(message, index));
 
   const requestBody = {
-    model: "gpt-4.1-mini",
-    messages: chatMessages,
-    ...rest,
+    model: model.trim(),
+    messages: normalizedMessages,
   };
+
+  for (const [key, value] of Object.entries(rest)) {
+    if (ALLOWED_CHAT_COMPLETION_OPTIONS.has(key)) {
+      requestBody[key] = value;
+    }
+  }
+
+  return requestBody;
+}
+
+async function handlePost(request, env, origin) {
+  if (!env.OPENAI_API_KEY) {
+    return errorResponse("Missing OpenAI API key.", 500, undefined, origin);
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch (error) {
+    return errorResponse("Invalid JSON body.", 400, undefined, origin);
+  }
+
+  let requestBody;
+  try {
+    requestBody = buildChatCompletionPayload(payload);
+  } catch (error) {
+    return errorResponse(
+      error instanceof Error ? error.message : String(error),
+      400,
+      undefined,
+      origin,
+    );
+  }
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -146,19 +292,19 @@ async function handlePost(request, env, origin) {
       body: JSON.stringify(requestBody),
     });
 
-    const responseText = await response.text();
+    const text = await response.text();
     let data;
     try {
-      data = JSON.parse(responseText);
+      data = JSON.parse(text);
     } catch (error) {
-      return jsonResponse({
+      return jsonResponse(request, {
         error: "Unexpected response from OpenAI API.",
         details: responseText,
       }, { status: 502 }, origin);
     }
 
     if (!response.ok) {
-      return jsonResponse({
+      return jsonResponse(request, {
         error: "OpenAI API request failed.",
         details: data,
       }, { status: response.status }, origin);
@@ -166,7 +312,7 @@ async function handlePost(request, env, origin) {
 
     return jsonResponse(data, { status: response.status }, origin);
   } catch (error) {
-    return jsonResponse({
+    return jsonResponse(request, {
       error: "Failed to contact OpenAI API.",
       details: error instanceof Error ? error.message : String(error),
     }, { status: 502 }, origin);
