@@ -9,3 +9,6 @@ GPT_ALLOWED_ORIGINS=https://localhost:8787
 # CF_ACCESS_AUD=your-access-audience
 # CF_ACCESS_ISS=https://your-team.cloudflareaccess.com
 # CF_ACCESS_JWKS_URL=https://your-team.cloudflareaccess.com/cdn-cgi/access/certs
+GPT_PROXY_SECRET=your-shared-secret
+GPT_PROXY_TOKEN=local-dev-shared-secret
+GPT_ALLOWED_ORIGINS=https://localhost:8787
