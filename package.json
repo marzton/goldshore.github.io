@@ -1,7 +1,6 @@
 {
   "name": "goldshore",
   "private": true,
-  "version": "0.0.0",
   "version": "0.1.0",
   "workspaces": [
     "apps/*",
@@ -9,31 +8,20 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "build:web": "npm --prefix apps/web run build"
-  },
-  "devDependencies": {
-    "sharp": "^0.33.3",
-    "@cloudflare/workers-types": "^4.20240512.0"
     "build:web": "npm --workspace apps/web run build",
-    "process-images": "node apps/web/scripts/process-images.mjs"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240821.0",
-    "sharp": "^0.33.4",
-    "wrangler": "^3.80.1"
-    "build:web": "npm --prefix apps/web run build",
     "process:images": "node apps/web/scripts/process-images.mjs"
   },
   "devDependencies": {
     "@actions/core": "^1.10.1",
     "@actions/github": "^6.0.0",
-    "@cloudflare/workers-types": "^4.20240512.0",
+    "@cloudflare/workers-types": "^4.20240821.0",
     "eslint": "^8.57.1",
     "htmlhint": "^1.1.4",
     "http-server": "^14.1.1",
     "lighthouse": "^12.0.0",
-    "sharp": "^0.33.3",
+    "sharp": "^0.33.4",
     "stylelint": "^16.8.0",
-    "stylelint-config-standard": "^36.0.0"
+    "stylelint-config-standard": "^36.0.0",
+    "wrangler": "^3.80.1"
   }
 }
