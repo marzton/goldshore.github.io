@@ -24,6 +24,11 @@ can authenticate with OpenAI:
 | `FORMSPREE_ENDPOINT` | Destination endpoint provided by Formspree | `wrangler secret put FORMSPREE_ENDPOINT` (or add to `.dev.vars` for local previews) |
 | `TURNSTILE_SECRET` | Server-side Turnstile verification secret | `wrangler secret put TURNSTILE_SECRET` (or add to `.dev.vars`) |
 | `OPENAI_API_KEY` | Authenticates calls to the `/api/gpt` handler | `wrangler secret put OPENAI_API_KEY` (or add to `.dev.vars`) |
+| `GPT_PROXY_TOKEN` | Shared secret browsers must send when calling `/api/gpt` | `wrangler secret put GPT_PROXY_TOKEN` (or add to `.dev.vars`) |
+| `GPT_ALLOWED_ORIGINS` | Comma-separated list of origins that receive CORS access | Define in `wrangler.toml` (`[vars]`) or add to `.dev.vars` |
+| `CF_ACCESS_AUD` | Audience identifier expected inside Cloudflare Access JWTs for `/api/gpt` | Define per-environment in `wrangler.toml` or via `wrangler secret put CF_ACCESS_AUD` |
+| `CF_ACCESS_ISS` | (Optional) Cloudflare Access issuer URL to pin for JWT validation | Define per-environment in `wrangler.toml` |
+| `CF_ACCESS_JWKS_URL` | (Optional) Override for the Cloudflare Access JWKS endpoint | Define per-environment in `wrangler.toml` |
 | `GPT_PROXY_SECRET` | Shared secret required by the `/api/gpt` handler | `wrangler secret put GPT_PROXY_SECRET` (or add to `.dev.vars`) |
 ```bash
 wrangler secret put OPENAI_API_KEY
@@ -67,6 +72,11 @@ Content-Type: application/json
 }
 ```
 
+Requests must include an `X-GPT-Proxy-Token` header whose value matches the `GPT_PROXY_TOKEN` secret; requests missing or presenting the wrong token are rejected before reaching OpenAI. Browsers will only receive a permissive CORS header when their `Origin` appears in `GPT_ALLOWED_ORIGINS`, ensuring non-whitelisted sites cannot piggyback on the proxy. When hitting the authenticated Worker hostname (`goldshore-org.admin-77d.workers.dev`), Cloudflare injects a `Cf-Access-Jwt-Assertion` header after the user completes Access authentication—calls without a valid JWT fail with `401`/`403` responses before token verification or OpenAI proxying occurs.
+
+Responses are returned verbatim from OpenAI's `/v1/chat/completions` endpoint. Be sure to configure both `OPENAI_API_KEY` and `GPT_PROXY_TOKEN`, and update `GPT_ALLOWED_ORIGINS` in each environment before deploying.
+
+Example `fetch` call from the frontend:
 Responses are returned verbatim from OpenAI's `/v1/chat/completions` endpoint. Be sure to configure both `OPENAI_API_KEY` and `GPT_PROXY_SECRET` in each environment before deploying. Clients must include the shared secret via an `x-api-key` header when calling the Worker:
 
 ```js
@@ -74,6 +84,18 @@ await fetch("/api/gpt", {
   method: "POST",
   headers: {
     "content-type": "application/json",
+    "x-gpt-proxy-token": "<your-matched-secret>",
+  },
+  body: JSON.stringify({
+    prompt: "Write a Python function that returns the factorial of n",
+    purpose: "coding",
+  }),
+});
+```
+
+## Swiss-Army Critique Pipeline
+
+The `critique-worker/` folder contains a Cloudflare Workers + Queues + R2 pipeline that turns inbound email into automated website, portfolio, or social critiques. High-level flow:
     "x-api-key": "your-shared-secret",
   },
   body: JSON.stringify({
