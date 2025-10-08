@@ -204,10 +204,11 @@ goldshore/
 ├─ packages/
 │  └─ image-tools/         # Sharp image optimisation scripts
 ├─ infra/
-│  └─ scripts/         # DNS automation
-├─ .github/workflows/  # Deploy + QA pipelines
-├─ wrangler.toml       # Worker configuration
-└─ package.json        # Workspace scripts for agents
+│  └─ scripts/             # DNS & Access automation
+├─ .github/workflows/      # Deploy / maintenance CI
+├─ wrangler.toml           # Cloudflare Pages configuration
+├─ wrangler.worker.toml    # Worker + bindings configuration
+└─ package.json            # npm workspaces + shared tooling
 ```
 
 ### Key files
@@ -268,7 +269,20 @@ These secrets are consumed by the Worker (via the Secrets Store binding) and Git
 
 ## Secrets required in CI
 
-Add the following secrets under **Settings → Secrets and variables → Actions**:
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start Astro locally:
+   ```bash
+   cd apps/web
+   npm install
+   npm run dev
+   ```
+3. Deploy the Worker preview when ready:
+   ```bash
+   npx wrangler dev --config wrangler.worker.toml
+   ```
 
 - `CF_API_TOKEN`
 - `CF_ACCOUNT_ID`
@@ -279,9 +293,16 @@ The public contact form posts to Formspree after passing Cloudflare Turnstile va
 
 The Worker expects Cloudflare Pages projects mapped to:
 
-- `goldshore-org.pages.dev` for production
-- `goldshore-org-preview.pages.dev` for preview
-- `goldshore-org-dev.pages.dev` for development
+Example Worker binding block:
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "goldshore-db"
+database_id = "DATABASE_ID"
+```
+
+Future Drizzle integration can live in `packages/db` alongside the schema.
 
 The DNS upsert script keeps these hostnames pointed at the correct Pages project using proxied CNAME records for:
 `goldshore.org`, `www.goldshore.org`, `preview.goldshore.org`, and `dev.goldshore.org`.

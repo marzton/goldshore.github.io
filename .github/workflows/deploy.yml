@@ -31,8 +31,8 @@ jobs:
       - name: Build site + assets
         run: npm run build
 
-      - name: Install Wrangler v4
-        run: npm i -D wrangler@^4
+      - name: Deploy Worker (${{ matrix.environment }})
+        run: npx wrangler deploy --config wrangler.worker.toml --env=${{ matrix.environment }} --minify
 
       - name: Sync DNS records
         env:
