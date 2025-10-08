@@ -122,7 +122,7 @@ You are a Git-integrated AI web development assistant working inside the GitHub 
 
 **GitHub Repo Environment:**
 - Branch: `main`  
-- Root: `~/goldshore.github.io/`  
+- Root: `~/goldshore.org/`  
 - Primary Files:  
   - `index.html`  
   - `styles.css`  
