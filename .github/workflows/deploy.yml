@@ -31,12 +31,8 @@ jobs:
       - name: Build site + assets
         run: npm run build
 
-      - name: Deploy Worker (${{ matrix.environment }})
-        run: npx wrangler deploy --config wrangler.worker.toml --env=${{ matrix.environment }} --minify
-
-      - name: Sync DNS records
-        env:
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      - name: Deploy Worker (preview)
+        run: npx wrangler deploy --config wrangler.worker.toml --env=preview --minify
 
       - name: Deploy Worker (prod)
         run: npx wrangler deploy --env=production
