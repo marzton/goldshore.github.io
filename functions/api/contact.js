@@ -1,104 +1,57 @@
-const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
-
-function jsonResponse(payload, init = {}) {
-  return new Response(JSON.stringify(payload), {
-    ...init,
-    headers: JSON_HEADERS
-  });
-}
-
-async function verifyTurnstile(token, secret, ip) {
-  const tokenStr = typeof token === 'string' ? token : '';
-  const secretStr = typeof secret === 'string' ? secret : '';
-
-  const usingTestCredentials = secretStr.startsWith('1x') && tokenStr.startsWith('1x');
-  if (usingTestCredentials) {
-    return { success: true, mode: 'test' };
-  }
-
-  const params = new URLSearchParams({
-    secret: secretStr,
-    response: tokenStr,
-    remoteip: ip || ''
-  });
-
-  const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    body: params
-  });
-
-  if (!response.ok) {
-    throw new Error(`turnstile_verify_http_${response.status}`);
-  }
-
-  return response.json();
-}
-
 export async function onRequestPost({ request, env }) {
   try {
+    const form = await request.formData();
+
     const turnstileSecret = env.TURNSTILE_SECRET;
     const formspreeEndpoint = env.FORMSPREE_ENDPOINT;
 
     if (!turnstileSecret || !formspreeEndpoint) {
-      return jsonResponse(
+      return new Response(
+        JSON.stringify({ ok: false, reason: 'missing_environment', missing: { turnstile: !turnstileSecret, formspree: !formspreeEndpoint } }),
         {
-          ok: false,
-          reason: 'missing_environment',
-          missing: {
-            turnstile: !turnstileSecret,
-            formspree: !formspreeEndpoint
-          }
-        },
-        { status: 500 }
+          status: 500,
+          headers: { 'content-type': 'application/json' }
+        }
       );
     }
 
-    const form = await request.formData();
-
-    const email = (form.get('email') || '').toString().trim();
-    const message = (form.get('message') || '').toString().trim();
-    const token = (form.get('cf-turnstile-response') || '').toString();
-
-    if (!token) {
-      return jsonResponse({ ok: false, reason: 'missing_token' }, { status: 400 });
-    }
-
-    if (!email || !message) {
-      return jsonResponse({ ok: false, reason: 'missing_fields' }, { status: 400 });
-    }
-
-    const verifyRes = await verifyTurnstile(
-      token,
-      turnstileSecret,
-      request.headers.get('CF-Connecting-IP')
-    );
+    const token = form.get('cf-turnstile-response');
+    const ip = request.headers.get('CF-Connecting-IP');
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: new URLSearchParams({
+        secret: turnstileSecret,
+        response: token,
+        remoteip: ip || ''
+      })
+    }).then((r) => r.json());
 
     if (!verifyRes.success) {
-      return jsonResponse({ ok: false, reason: 'turnstile_failed', verifyRes }, { status: 400 });
-    }
-
-    if (!formspreeEndpoint.startsWith('mock:')) {
-      const forward = new FormData();
-      forward.set('email', email);
-      forward.set('message', message);
-      forward.set('_subject', 'Gold Shore Contact');
-
-      const fsRes = await fetch(formspreeEndpoint, {
-        method: 'POST',
-        body: forward
+      return new Response(JSON.stringify({ ok: false, reason: 'turnstile_failed', verifyRes }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' }
       });
-
-      if (!fsRes.ok) {
-        const txt = await fsRes.text();
-        return jsonResponse({ ok: false, reason: 'formspree_error', txt }, { status: 502 });
-      }
     }
 
-    return new Response(null, {
-      status: 303,
-      headers: { Location: '/#contact-success' }
+    const forward = new FormData();
+    forward.set('email', form.get('email') || '');
+    forward.set('message', form.get('message') || '');
+    forward.set('_subject', 'Gold Shore Contact');
+
+    const fsRes = await fetch(formspreeEndpoint, { method: 'POST', body: forward });
+    if (!fsRes.ok) {
+      const txt = await fsRes.text();
+      return new Response(JSON.stringify({ ok: false, reason: 'formspree_error', txt }), {
+        status: 502,
+        headers: { 'content-type': 'application/json' }
+      });
+    }
+
+    return Response.redirect('/#contact-success', 303);
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: String(err) }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' }
     });
-  } catch (error) {
-    return jsonResponse({ ok: false, error: String(error) }, { status: 500 });
   }
 }
