@@ -1,0 +1,52 @@
+{
+  "applications": [
+    {
+      "name": "GoldShore Admin",
+      "domain": "goldshore.org/admin",
+      "type": "self_hosted",
+      "session_duration": "24h",
+      "policies": [
+        {
+          "name": "GoldShore Team",
+          "precedence": 1,
+          "decision": "allow",
+          "include": [
+            { "email_domain": { "domain": "goldshore.org" } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GoldShore Preview",
+      "domain": "preview.goldshore.org",
+      "type": "self_hosted",
+      "session_duration": "12h",
+      "policies": [
+        {
+          "name": "Team Preview Access",
+          "precedence": 1,
+          "decision": "allow",
+          "include": [
+            { "email_domain": { "domain": "goldshore.org" } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GoldShore Dev",
+      "domain": "dev.goldshore.org",
+      "type": "self_hosted",
+      "session_duration": "12h",
+      "policies": [
+        {
+          "name": "Team Dev Access",
+          "precedence": 1,
+          "decision": "allow",
+          "include": [
+            { "email_domain": { "domain": "goldshore.org" } }
+          ]
+        }
+      ]
+    }
+  ]
+}
