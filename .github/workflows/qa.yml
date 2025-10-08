@@ -14,6 +14,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install dependencies
+        run: npm install
+
       - name: Install tooling
         run: npm install --no-package-lock --save-dev html-validate axe-core puppeteer lighthouse http-server
 
