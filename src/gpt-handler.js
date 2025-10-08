@@ -1,5 +1,32 @@
+const TOKEN_HEADER_NAME = "x-api-key";
+const BASE_CORS_HEADERS = {
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
+};
 const DEFAULT_ALLOWED_HEADERS = "Content-Type, Authorization";
 const DEFAULT_ALLOWED_METHODS = "POST, OPTIONS";
+
+const encoder = new TextEncoder();
+
+function timingSafeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") {
+    return false;
+  }
+
+  const encodedA = encoder.encode(a);
+  const encodedB = encoder.encode(b);
+
+  if (encodedA.length !== encodedB.length) {
+    return false;
+  }
+
+  let diff = 0;
+  for (let index = 0; index < encodedA.length; index += 1) {
+    diff |= encodedA[index] ^ encodedB[index];
+  }
+
+  return diff === 0;
+}
 
 function parseAllowedOrigins(env) {
   const rawOrigins = env.GPT_ALLOWED_ORIGINS || env.ALLOWED_ORIGINS || "";
@@ -18,6 +45,12 @@ function buildCorsHeaders(origin) {
     headers.set("Vary", "Origin");
   }
 
+  const normalizedOrigin = requestOrigin.trim();
+  for (const allowed of allowedOrigins) {
+    if (allowed === normalizedOrigin) {
+      return normalizedOrigin;
+    }
+  }
   headers.set("Access-Control-Allow-Methods", DEFAULT_ALLOWED_METHODS);
   headers.set("Access-Control-Allow-Headers", DEFAULT_ALLOWED_HEADERS);
 
@@ -81,6 +114,9 @@ function validateOrigin(request, env) {
 function authorizeRequest(request, env, origin) {
   const expectedToken = env.GPT_SERVICE_TOKEN;
 
+  const expectedToken = env.GPT_PROXY_SECRET;
+  if (!expectedToken) {
+    return jsonResponse({ error: "Missing GPT proxy secret." }, { status: 500 }, allowedOrigin);
   if (!expectedToken) {
     return jsonResponse(
       { error: "Server misconfigured: missing GPT service token." },
@@ -114,6 +150,8 @@ async function handlePost(request, env, origin) {
     );
   }
 
+  if (!timingSafeEqual(providedToken, expectedToken)) {
+    return jsonResponse({ error: "Invalid authentication token." }, { status: 403 }, allowedOrigin);
   const providedSecret = request.headers.get("x-api-key");
   if (providedSecret !== env.GPT_PROXY_SECRET) {
     return jsonResponse(request, { error: "Unauthorized." }, { status: 401 });
