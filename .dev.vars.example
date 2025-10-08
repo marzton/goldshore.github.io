@@ -1,7 +1,8 @@
 # Copy to .dev.vars for local development
 # Never commit .dev.vars; it is ignored via .gitignore
-FORMSPREE_ENDPOINT=https://formspree.io/f/your-form-id
-TURNSTILE_SECRET=your-turnstile-secret
 OPENAI_API_KEY=sk-your-openai-key
-GPT_PROXY_TOKEN=local-dev-shared-secret
-GPT_ALLOWED_ORIGINS=https://localhost:8787
+OPENAI_PROJECT_ID=proj-1234
+CF_API_TOKEN=cf-api-token
+CF_ACCOUNT_ID=cf-account-id
+CF_ZONE_ID=cf-zone-id
+APP_NAME=GoldShore

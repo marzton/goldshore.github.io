@@ -1,4 +1,12 @@
 ---
+import "../styles/theme.css";
+
+const hero = {
+  title: "Tools for real traders.",
+  subtitle: "We build market tools that respect capital and context.",
+  cta: { text: "Explore the suite", href: "/products" }
+};
+const year = new Date().getFullYear();
 import '../styles/theme.css';
 
 const hero = {
@@ -11,6 +19,7 @@ const hero = {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
+    <link rel="stylesheet" href="/styles/theme.css" />
     <title>GoldShore</title>
   </head>
   <body>
@@ -37,6 +46,7 @@ const hero = {
     </main>
 
     <footer class="container" style="opacity:.7;margin-top:40px">
+      <small>© {year} GoldShore</small>
       <small>© {new Date().getFullYear()} GoldShore</small>
     </footer>
   </body>
