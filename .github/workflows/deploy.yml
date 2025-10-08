@@ -1,4 +1,6 @@
-name: Deploy Gold Shore platform
+- name: Upload a Build Artifact
+  uses: actions/upload-artifact@v4.6.2
+  //name: Deploy Gold Shore Store platform
 
 on:
   push:
