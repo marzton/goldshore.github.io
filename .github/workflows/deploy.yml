@@ -8,6 +8,7 @@ on:
       - "packages/**"
       - "infra/**"
       - "wrangler.toml"
+      - "wrangler.worker.toml"
       - "package.json"
   workflow_dispatch:
 
@@ -40,7 +41,7 @@ jobs:
         run: npm run build:web
 
       - name: Deploy Worker (${{ matrix.environment }})
-        run: npx wrangler deploy --env=${{ matrix.environment }} --minify
+        run: npx wrangler deploy --env=${{ matrix.environment }} --minify --config wrangler.worker.toml
 
       - name: Rebuild Access (goldshore)
         env:
