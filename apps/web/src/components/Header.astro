@@ -93,6 +93,12 @@ const navLinks = [
   display: flex;
 }
 
+@media (min-width: 901px) {
+  .mobile-menu {
+    display: none !important;
+  }
+}
+
 @media (max-width: 900px) {
   .nav {
     display: none;
@@ -143,6 +149,7 @@ const navLinks = [
     id="mobile-primary-navigation"
     data-mobile-menu
     hidden
+    aria-hidden="true"
   >
     <nav aria-label="Mobile primary">
       {navLinks.map(({ href, label }) => (
@@ -158,9 +165,16 @@ const navLinks = [
 
   if (toggleButton && mobileMenu) {
     let isOpen = false;
+    const focusableSelectors = [
+      'a[href]',
+      'button:not([disabled])',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(', ');
 
-    const getFocusableItems = () =>
-      mobileMenu.querySelectorAll('a, button, [tabindex]:not([tabindex="-1"])');
+    const getFocusableItems = () => mobileMenu.querySelectorAll(focusableSelectors);
 
     const setButtonState = () => {
       toggleButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
@@ -170,29 +184,43 @@ const navLinks = [
       );
     };
 
+    const setMenuState = () => {
+      if (isOpen) {
+        mobileMenu.hidden = false;
+        mobileMenu.classList.add('is-open');
+        mobileMenu.setAttribute('aria-hidden', 'false');
+      } else {
+        mobileMenu.classList.remove('is-open');
+        mobileMenu.hidden = true;
+        mobileMenu.setAttribute('aria-hidden', 'true');
+      }
+    };
+
     const openMenu = () => {
       if (isOpen) return;
       isOpen = true;
-      mobileMenu.hidden = false;
-      mobileMenu.classList.add('is-open');
-      const [firstFocusable] = getFocusableItems();
-      if (firstFocusable) {
-        firstFocusable.focus();
-      }
+      setMenuState();
+      requestAnimationFrame(() => {
+        const [firstFocusable] = getFocusableItems();
+        if (firstFocusable) {
+          firstFocusable.focus();
+        }
+      });
       setButtonState();
       document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('click', handleDocumentClick);
+      document.addEventListener('pointerdown', handlePointerDown);
     };
 
-    const closeMenu = () => {
+    const closeMenu = ({ returnFocus = true } = {}) => {
       if (!isOpen) return;
       isOpen = false;
-      mobileMenu.classList.remove('is-open');
-      mobileMenu.hidden = true;
+      setMenuState();
       setButtonState();
-      toggleButton.focus();
+      if (returnFocus) {
+        toggleButton.focus();
+      }
       document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('click', handleDocumentClick);
+      document.removeEventListener('pointerdown', handlePointerDown);
     };
 
     const handleKeyDown = (event) => {
@@ -224,15 +252,16 @@ const navLinks = [
       }
     };
 
-    const handleDocumentClick = (event) => {
+    const handlePointerDown = (event) => {
+      if (!isOpen) return;
       if (
-        isOpen &&
-        !mobileMenu.contains(event.target) &&
-        event.target !== toggleButton &&
-        !toggleButton.contains(event.target)
+        mobileMenu.contains(event.target) ||
+        toggleButton === event.target ||
+        toggleButton.contains(event.target)
       ) {
-        closeMenu();
+        return;
       }
+      closeMenu({ returnFocus: false });
     };
 
     toggleButton.addEventListener('click', () => {
@@ -246,7 +275,7 @@ const navLinks = [
     const mediaQuery = window.matchMedia('(min-width: 901px)');
     const handleMediaChange = (event) => {
       if (event.matches) {
-        closeMenu();
+        closeMenu({ returnFocus: false });
       }
     };
 
@@ -256,7 +285,6 @@ const navLinks = [
       mediaQuery.removeEventListener('change', handleMediaChange);
     });
 
-    // Keep menu hidden on load until explicitly opened.
-    mobileMenu.hidden = true;
+    setMenuState();
   }
 </script>
