@@ -8,6 +8,10 @@ const meta = {
 };
 
 const buildTimeTurnstileKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
+const sanitizedBuildTimeKey =
+  typeof buildTimeTurnstileKey === 'string' && buildTimeTurnstileKey !== 'undefined'
+    ? buildTimeTurnstileKey
+    : '';
 ---
 <BaseLayout {...meta}>
   <h1 class="section-title">Let’s build momentum</h1>
@@ -46,7 +50,7 @@ const buildTimeTurnstileKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
     </div>
     <div
       id="turnstile-wrapper"
-      data-build-sitekey={buildTimeTurnstileKey ?? ""}
+      data-build-sitekey={sanitizedBuildTimeKey}
       style="display: none; justify-content: center;"
     >
       <div id="turnstile-container" class="cf-turnstile" data-theme="dark"></div>
@@ -92,7 +96,7 @@ const buildTimeTurnstileKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
       const bootstrap = async () => {
         const wrapper = document.getElementById('turnstile-wrapper');
         const buildTimeKey = wrapper?.dataset?.buildSitekey;
-        if (buildTimeKey) {
+        if (buildTimeKey && buildTimeKey !== 'undefined') {
           revealWidget(buildTimeKey);
           return;
         }
