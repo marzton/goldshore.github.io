@@ -17,7 +17,7 @@ export default {
       return GPTHandler.fetch(request, env, ctx);
     }
 
-    const targetOrigin = env.ASSETS_ORIGIN || env.PRODUCTION_ASSETS || "https://goldshore-org.pages.dev";
+    const targetOrigin = env.ASSETS_ORIGIN || env.PRODUCTION_ASSETS || "https://goldshore.pages.dev";
 
     try {
       const origin = new URL(targetOrigin);
