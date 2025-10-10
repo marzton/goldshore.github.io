@@ -14,7 +14,6 @@ const ALLOWED_CHAT_COMPLETION_OPTIONS = new Set([
   "response_format",
   "seed",
   "stop",
-  "stream",
   "temperature",
   "top_p",
   "user",
@@ -269,6 +268,10 @@ function buildChatCompletionPayload(payload) {
         },
       ])
     .map((message, index) => normalizeMessage(message, index));
+
+  if (Object.prototype.hasOwnProperty.call(rest, "stream")) {
+    throw new Error("stream option is not supported by this proxy.");
+  }
 
   const requestBody = {
     model: trimmedModel,
