@@ -1,5 +1,5 @@
 # wrangler.toml (Worker router)
-name = "goldshore"
+name = "plain-disk-88bb"
 main = "apps/api-router/src/router.ts"
 compatibility_date = "2025-10-05"
 workers_dev = false
