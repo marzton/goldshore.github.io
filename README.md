@@ -37,7 +37,7 @@ For automated workflows (CI, scripts in `infra/`), export the same value or add 
 
 ```bash
 cat >> .dev.vars <<'ENV'
-CF_API_TOKEN="<your-goldshore-worker-token>"
+CF_API_TOKEN="goldshore"
 ENV
 ```
 
