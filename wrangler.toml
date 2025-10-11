@@ -5,9 +5,9 @@ compatibility_date = "2024-06-30"
 workers_dev = false
 
 [vars]
-PRODUCTION_ASSETS = "https://goldshore.pages.dev"
-PREVIEW_ASSETS = "https://goldshore-preview.pages.dev"
-DEV_ASSETS = "https://goldshore-dev.pages.dev"
+PRODUCTION_ASSETS = "https://goldshore-org.pages.dev"
+PREVIEW_ASSETS = "https://goldshore-org-preview.pages.dev"
+DEV_ASSETS = "https://goldshore-org-dev.pages.dev"
 
 # Secrets such as FORMSPREE_ENDPOINT and TURNSTILE_SECRET are provided via
 # `wrangler secret put …` or `.dev.vars` in local development.
@@ -25,7 +25,7 @@ routes = [
 ]
 
 [env.production.vars]
-ASSETS_ORIGIN = "https://goldshore.pages.dev"
+ASSETS_ORIGIN = "https://goldshore-org.pages.dev"
 
 [env.preview]
 routes = [
@@ -36,7 +36,7 @@ routes = [
 ]
 
 [env.preview.vars]
-ASSETS_ORIGIN = "https://goldshore-preview.pages.dev"
+ASSETS_ORIGIN = "https://goldshore-org-preview.pages.dev"
 
 [env.dev]
 routes = [
@@ -47,7 +47,7 @@ routes = [
 ]
 
 [env.dev.vars]
-ASSETS_ORIGIN = "https://goldshore-dev.pages.dev"
+ASSETS_ORIGIN = "https://goldshore-org-dev.pages.dev"
 
 [[analytics_engine_datasets]]
 binding = "GOLD_ANALYTICS"
