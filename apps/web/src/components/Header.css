@@ -20,7 +20,7 @@
 
 .title {
   font: 800 18px/1.1 "Inter", system-ui, sans-serif;
-  letter-spacing: .12em;
+  letter-spacing: 0.12em;
 }
 
 .nav {

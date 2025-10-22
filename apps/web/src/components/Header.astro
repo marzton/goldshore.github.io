@@ -1,5 +1,6 @@
 ---
 import "./Header.css";
+
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
@@ -48,3 +49,4 @@ const headerScript = await import("../scripts/headerMenu.ts?url");
 </header>
 <script type="module" src={headerScript.default}></script>
 
+<script type="module" src={Astro.resolve("./header-menu.ts")}></script>
