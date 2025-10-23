@@ -1,3 +1,11 @@
+const TOKEN_HEADER_NAME = "x-api-key";
+const PROXY_TOKEN_HEADER_NAME = "x-gpt-proxy-token";
+const BASE_CORS_HEADERS = {
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-GPT-Proxy-Token, X-API-Key, CF-Access-Jwt-Assertion",
+};
+
+const DEFAULT_MODEL = "gpt-4o-mini";
 const ALLOWED_METHODS = "POST, OPTIONS";
 const ALLOWED_HEADERS =
   "Content-Type, Authorization, X-GPT-Proxy-Token, X-Api-Key, CF-Access-Jwt-Assertion";
@@ -7,6 +15,8 @@ const ALLOWED_CHAT_COMPLETION_OPTIONS = new Set([
   "frequency_penalty",
   "logit_bias",
   "logprobs",
+  "max_tokens",
+  "modalities",
   "top_logprobs",
   "max_tokens",
   "n",
@@ -14,6 +24,12 @@ const ALLOWED_CHAT_COMPLETION_OPTIONS = new Set([
   "response_format",
   "seed",
   "stop",
+  "stream",
+  "temperature",
+  "top_logprobs",
+  "top_p",
+  "tool_choice",
+  "tools",
   "temperature",
   "top_p",
   "user",
@@ -136,7 +152,8 @@ function extractProvidedToken(request) {
     return apiKeyHeader.trim();
   }
 
-  return null;
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : null;
 }
 
 function authenticateRequest(request, env, corsOrigin) {
@@ -279,24 +296,25 @@ function buildChatCompletionPayload(payload) {
   };
 
   for (const [key, value] of Object.entries(rest)) {
-    if (ALLOWED_CHAT_COMPLETION_OPTIONS.has(key)) {
-      requestBody[key] = value;
+    if (!ALLOWED_CHAT_COMPLETION_OPTIONS.has(key) || value === undefined) {
+      continue;
     }
+    requestBody[key] = value;
   }
 
   return requestBody;
 }
 
-async function handlePost(request, env, origin) {
+async function handlePost(request, env, corsOrigin) {
   if (!env.OPENAI_API_KEY) {
-    return errorResponse("Missing OpenAI API key.", 500, undefined, origin);
+    return errorResponse("Missing OpenAI API key.", 500, undefined, corsOrigin);
   }
 
   let payload;
   try {
     payload = await request.json();
   } catch (error) {
-    return errorResponse("Invalid JSON body.", 400, undefined, origin);
+    return errorResponse("Invalid JSON body.", 400, undefined, corsOrigin);
   }
 
   let requestBody;
@@ -307,7 +325,7 @@ async function handlePost(request, env, origin) {
       error instanceof Error ? error.message : String(error),
       400,
       undefined,
-      origin,
+      corsOrigin,
     );
   }
 
@@ -321,10 +339,10 @@ async function handlePost(request, env, origin) {
       body: JSON.stringify(requestBody),
     });
 
-    const text = await response.text();
+    const responseText = await response.text();
     let data;
     try {
-      data = JSON.parse(text);
+      data = JSON.parse(responseText);
     } catch (error) {
       return errorResponse(
         "Unexpected response from OpenAI API.",
@@ -338,7 +356,7 @@ async function handlePost(request, env, origin) {
       return errorResponse("OpenAI API request failed.", response.status, data, origin);
     }
 
-    return jsonResponse(data, { status: response.status }, origin);
+    return jsonResponse(data, { status: response.status }, corsOrigin);
   } catch (error) {
     return errorResponse(
       "Failed to contact OpenAI API.",
