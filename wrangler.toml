@@ -26,14 +26,17 @@ routes = [
   { pattern = "preview.banproof.com/*", zone_name = "banproof.com", script = "router-preview" },
   { pattern = "dev.banproof.com/*", zone_name = "banproof.com", script = "router-dev" },
 
+  # Routes for primary marketing hostnames. Wildcards are intentionally avoided so
+  # API subdomains like `api.goldshore.org` continue to resolve to their dedicated
+  # origins provisioned by the deployment workflow.
   { pattern = "goldshore.org/*", zone_name = "goldshore.org" },
-  { pattern = "*.goldshore.org/*", zone_name = "goldshore.org" },
+  { pattern = "www.goldshore.org/*", zone_name = "goldshore.org" },
   { pattern = "gearswipe.com/*", zone_name = "gearswipe.com" },
-  { pattern = "*.gearswipe.com/*", zone_name = "gearswipe.com" },
+  { pattern = "www.gearswipe.com/*", zone_name = "gearswipe.com" },
   { pattern = "armsway.com/*", zone_name = "armsway.com" },
-  { pattern = "*.armsway.com/*", zone_name = "armsway.com" },
+  { pattern = "www.armsway.com/*", zone_name = "armsway.com" },
   { pattern = "banproof.com/*", zone_name = "banproof.com" },
-  { pattern = "*.banproof.com/*", zone_name = "banproof.com" }
+  { pattern = "www.banproof.com/*", zone_name = "banproof.com" }
 ]
 
 [env.production.vars]
