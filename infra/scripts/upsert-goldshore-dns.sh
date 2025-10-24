@@ -6,6 +6,7 @@ set -euo pipefail
 
 ZONE_DEFAULT="goldshore.org"
 ZONE="${ZONE:-${ZONE_NAME:-${ZONE_DEFAULT}}}"
+ZONE="${ZONE_NAME:-${ZONE:-goldshore.org}}"
 API="https://api.cloudflare.com/client/v4"
 AUTH_HEADER=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
 
