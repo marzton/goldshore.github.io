@@ -2,14 +2,14 @@ const TOKEN_HEADER_NAME = "x-api-key";
 const PROXY_TOKEN_HEADER_NAME = "x-gpt-proxy-token";
 const BASE_CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-GPT-Proxy-Token, X-API-Key, CF-Access-Jwt-Assertion",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-GPT-Proxy-Token, X-API-Key, CF-Access-Jwt-Assertion",
 };
 
 const DEFAULT_MODEL = "gpt-4o-mini";
 const ALLOWED_METHODS = "POST, OPTIONS";
 const ALLOWED_HEADERS =
   "Content-Type, Authorization, X-GPT-Proxy-Token, X-Api-Key, CF-Access-Jwt-Assertion";
-const DEFAULT_MODEL = "gpt-4o-mini";
 const SUPPORTED_MODELS = new Set(["gpt-4o-mini", "gpt-4o", "o4-mini"]);
 const ALLOWED_CHAT_COMPLETION_OPTIONS = new Set([
   "frequency_penalty",
@@ -17,21 +17,16 @@ const ALLOWED_CHAT_COMPLETION_OPTIONS = new Set([
   "logprobs",
   "max_tokens",
   "modalities",
-  "top_logprobs",
-  "max_tokens",
   "n",
   "presence_penalty",
   "response_format",
   "seed",
   "stop",
-  "stream",
   "temperature",
   "top_logprobs",
   "top_p",
   "tool_choice",
   "tools",
-  "temperature",
-  "top_p",
   "user",
 ]);
 
@@ -152,8 +147,7 @@ function extractProvidedToken(request) {
     return apiKeyHeader.trim();
   }
 
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  return match ? match[1].trim() : null;
+  return null;
 }
 
 function authenticateRequest(request, env, corsOrigin) {
@@ -347,13 +341,13 @@ async function handlePost(request, env, corsOrigin) {
       return errorResponse(
         "Unexpected response from OpenAI API.",
         502,
-        { body: text },
-        origin,
+        { body: responseText },
+        corsOrigin,
       );
     }
 
     if (!response.ok) {
-      return errorResponse("OpenAI API request failed.", response.status, data, origin);
+      return errorResponse("OpenAI API request failed.", response.status, data, corsOrigin);
     }
 
     return jsonResponse(data, { status: response.status }, corsOrigin);
@@ -362,7 +356,7 @@ async function handlePost(request, env, corsOrigin) {
       "Failed to contact OpenAI API.",
       502,
       error instanceof Error ? error.message : String(error),
-      origin,
+      corsOrigin,
     );
   }
 }
