@@ -1,3 +1,6 @@
+# Cloudflare Pages configuration. Worker deployments should use wrangler.worker.toml.
+pages_build_output_dir = "./apps/web/dist"
+pages_build_command = "npm run build:web"
 # wrangler.toml (Worker router)
 name = "goldshore"
 main = "apps/api-router/src/router.ts"
