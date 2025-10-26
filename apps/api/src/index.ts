@@ -33,10 +33,10 @@ const router = {
     POST: async (req: Request, env: Env) => {
       const ct = req.headers.get("content-type") || "";
       const body = ct.includes("application/json") ? await req.json() : Object.fromEntries((await req.formData()).entries());
-      const email = (body.email || "").toString().trim();
+      const email = (body.email||"").toString().trim();
       const emailRegex = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-      if (!email) return new Response(JSON.stringify({ ok: false, error: "EMAIL_REQUIRED" }), { status: 400 });
-      if (!emailRegex.test(email)) return new Response(JSON.stringify({ ok: false, error: "INVALID_EMAIL" }), { status: 400 });
+      if (!email) return new Response(JSON.stringify({ ok:false, error:"EMAIL_REQUIRED" }), { status:400, headers });
+      if (!emailRegex.test(email)) return new Response(JSON.stringify({ ok:false, error:"INVALID_EMAIL" }), { status:400, headers });
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS leads (email TEXT PRIMARY KEY, ts TEXT DEFAULT CURRENT_TIMESTAMP)").run();
       await env.DB.prepare("INSERT OR IGNORE INTO leads (email) VALUES (?)").bind(email).run();
       return { ok: true };
