@@ -121,4 +121,20 @@ describe("Goldshore API REST handlers", () => {
     expect(riskLimits.json.data.limits.max_notional).toBe(50000);
     expect(riskLimits.json.data.limits.regions).toContain("US");
   });
+
+  it("validates email on lead capture", async () => {
+    const validLead = await request("/v1/lead", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "test@example.com" })
+    });
+    expect(validLead.res.status).toBe(200);
+
+    const invalidLead = await request("/v1/lead", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "not-an-email" })
+    });
+    expect(invalidLead.res.status).toBe(400);
+  });
 });
