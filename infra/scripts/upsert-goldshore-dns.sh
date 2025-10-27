@@ -87,19 +87,34 @@ for name in "${ordered_names[@]}"; do
   record="${record_by_name[$name]}"
   type=$(echo "$record" | jq -r '.type')
   content=$(echo "$record" | jq -r '.content')
-  proxied=$(echo "$record" | jq -r '.proxied')
+  proxied=$(echo "$record" | jq '.proxied // false')
 
-  existing=$(api_request "GET" "/zones/$CF_ZONE_ID/dns_records?name=$name")
-  record_id=$(echo "$existing" | jq -r '.result[0].id // empty')
-  existing_type=$(echo "$existing" | jq -r '.result[0].type // empty')
+  existing=$(api_request "GET" "/zones/$CF_ZONE_ID/dns_records?name=$name&per_page=100")
+  declare -a existing_records=()
+  mapfile -t existing_records < <(echo "$existing" | jq -c '.result[]?')
 
-  if [[ -n "$record_id" && "$existing_type" != "$type" ]]; then
-    echo "Removing existing $existing_type record for $name to create $type"
-    api_request "DELETE" "/zones/$CF_ZONE_ID/dns_records/$record_id" > /dev/null
-    record_id=""
-  fi
+  record_id=""
 
-  payload=$(jq -n --arg type "$type" --arg name "$name" --arg content "$content" --argjson proxied $proxied '{type:$type,name:$name,content:$content,proxied:$proxied,ttl:1}')
+  for existing_record in "${existing_records[@]}"; do
+    existing_id=$(echo "$existing_record" | jq -r '.id')
+    existing_type=$(echo "$existing_record" | jq -r '.type')
+
+    if [[ "$existing_type" != "$type" ]]; then
+      echo "Removing existing $existing_type record for $name to create $type"
+      api_request "DELETE" "/zones/$CF_ZONE_ID/dns_records/$existing_id" > /dev/null
+      continue
+    fi
+
+    if [[ -z "$record_id" ]]; then
+      record_id="$existing_id"
+      continue
+    fi
+
+    echo "Removing duplicate $existing_type record for $name (id: $existing_id)"
+    api_request "DELETE" "/zones/$CF_ZONE_ID/dns_records/$existing_id" > /dev/null
+  done
+
+  payload=$(jq -n --arg type "$type" --arg name "$name" --arg content "$content" --argjson proxied "$proxied" '{type:$type,name:$name,content:$content,proxied:$proxied,ttl:1}')
 
   if [[ -z "$record_id" ]]; then
     echo "Creating $type $name -> $content"
