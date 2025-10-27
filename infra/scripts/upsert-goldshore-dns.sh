@@ -50,8 +50,21 @@ while IFS= read -r record; do
     exit 1
   fi
 
-  record_id=$(echo "$existing" | jq -r --arg type "$type" '([.result[] | select(.type == $type) | .id][0]) // ""')
-  conflicts=$(echo "$existing" | jq -r --arg type "$type" '.result[] | select(.type != $type) | "\(.id) \(.type)"')
+  record_id=$(echo "$existing" | jq -r --arg type "$type" '
+    (.result // [])
+    | map(select(.type == $type) | .id)
+    | (.[0] // "")
+  ')
+  conflicts=$(echo "$existing" | jq -r --arg type "$type" '
+    (.result // [])
+    | map(select(
+        ($type == "CNAME" and .type != "CNAME")
+        or
+        ($type != "CNAME" and .type == "CNAME")
+      ))
+    | .[]?
+    | "\(.id) \(.type)"
+  ')
 
   if [[ -n "$conflicts" ]]; then
     while read -r conflict_id conflict_type; do
