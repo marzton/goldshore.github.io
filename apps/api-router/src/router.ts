@@ -24,7 +24,7 @@ const buildCorsHeaders = (origin: string): Headers => {
   return headers;
 };
 
-export default {
+const handler: ExportedHandler<Env> = {
   async fetch(req, env): Promise<Response> {
     const url = new URL(req.url);
 
@@ -76,4 +76,6 @@ export default {
       headers: responseHeaders
     });
   }
-} satisfies ExportedHandler<Env>;
+};
+
+export default handler satisfies ExportedHandler<Env>;
