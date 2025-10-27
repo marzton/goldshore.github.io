@@ -100,8 +100,7 @@ for name in "${ordered_names[@]}"; do
     existing_type=$(echo "$existing_record" | jq -r '.type')
 
     if [[ "$existing_type" != "$type" ]]; then
-      echo "Removing existing $existing_type record for $name to create $type"
-      api_request "DELETE" "/zones/$CF_ZONE_ID/dns_records/$existing_id" > /dev/null
+      # Leave other record types intact to avoid deleting unrelated DNS entries.
       continue
     fi
 
