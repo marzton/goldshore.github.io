@@ -188,9 +188,11 @@ const handleGptPost = async (request: Request, env: Env, allowedOrigin: string |
 
     return jsonResponse(data, { status: response.status }, allowedOrigin);
   } catch (error) {
+    // Log the error server-side for diagnostics
+    console.error('Error contacting OpenAI API:', error);
     return jsonResponse({
       error: 'Failed to contact OpenAI API.',
-      details: error instanceof Error ? error.message : String(error),
+      details: 'Internal server error.',
     }, { status: 502 }, allowedOrigin);
   }
 };
