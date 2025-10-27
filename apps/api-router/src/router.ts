@@ -20,6 +20,7 @@ const buildCorsHeaders = (origin: string): Headers => {
   headers.set('access-control-allow-methods', 'GET,HEAD,POST,OPTIONS');
   headers.set('access-control-allow-headers', 'accept,content-type');
   headers.set('access-control-max-age', '86400');
+  headers.set('vary', 'origin');
   return headers;
 };
 
@@ -27,8 +28,10 @@ export default {
   async fetch(req, env): Promise<Response> {
     const url = new URL(req.url);
 
+    const requestOrigin = req.headers.get('Origin') ?? `${url.protocol}//${url.host}`;
+
     if (req.method === 'OPTIONS') {
-      const cors = buildCorsHeaders(`${url.protocol}//${url.host}`);
+      const cors = buildCorsHeaders(requestOrigin);
       cors.set('content-length', '0');
       return new Response(null, { status: 204, headers: cors });
     }
@@ -52,8 +55,21 @@ export default {
 
     const responseHeaders = new Headers(proxiedResponse.headers);
     responseHeaders.set('x-served-by', env.APP_NAME);
-    const cors = buildCorsHeaders(`${url.protocol}//${url.host}`);
-    cors.forEach((value, key) => responseHeaders.set(key, value));
+    const cors = buildCorsHeaders(requestOrigin);
+    cors.forEach((value, key) => {
+      if (key === 'vary' && responseHeaders.has('vary')) {
+        const existing = responseHeaders.get('vary');
+        if (existing && !existing
+          .split(',')
+          .map((token) => token.trim().toLowerCase())
+          .includes(value.toLowerCase())) {
+          responseHeaders.set('vary', `${existing}, ${value}`);
+        }
+        return;
+      }
+
+      responseHeaders.set(key, value);
+    });
 
     return new Response(proxiedResponse.body, {
       status: proxiedResponse.status,
