@@ -1,0 +1,27 @@
+name = "goldshore-agent"
+main = "src/index.js"
+account_id = "<YOUR_CF_ACCOUNT_ID>"
+compatibility_date = "2025-10-21"
+
+routes = [
+  # Primary GoldShore Routes
+  { pattern = "api.goldshore.org/*", zone_name = "goldshore.org" },
+  { pattern = "agent.goldshore.org/*", zone_name = "goldshore.org" },
+  { pattern = "api.banproof.me/*", zone_name = "banproof.me" },
+
+  # GoldShore Foundation Routes (New)
+  { pattern = "api.goldshore.foundation/*", zone_name = "goldshore.foundation" },
+  { pattern = "agent.goldshore.foundation/*", zone_name = "goldshore.foundation" },
+  
+  # GoldShoreFoundation.org Routes (New)
+  { pattern = "api.goldshorefoundation.org/*", zone_name = "goldshorefoundation.org" },
+  { pattern = "agent.goldshorefoundation.org/*", zone_name = "goldshorefoundation.org" }
+]
+
+[vars]
+SERVICE_NAME = "GoldShore Agent"
+AI_MODEL = "gpt-4o-mini"
+PUBLIC_ADMIN = "https://admin.goldshore.org"
+
+# CRITICAL: List of all allowed frontend hosts for CORS access to the API
+CORS_ORIGINS = "https://goldshore.org, https://www.goldshore.org, https://admin.goldshore.org, https://web.goldshore.org, https://agent.goldshore.org, https://goldshore.foundation, https://www.goldshore.foundation, https://admin.goldshore.foundation, https://web.goldshore.foundation, https://goldshorefoundation.org, https://admin.goldshorefoundation.org, https://web.goldshorefoundation.org"
