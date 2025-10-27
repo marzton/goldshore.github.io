@@ -46,6 +46,14 @@ jobs:
           npm install --no-package-lock
           npx astro build
 
+      - name: Archive site assets
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-maint-web-dist
+          path: apps/web/dist
+          retention-days: 7
+
       - name: Lighthouse smoke (static)
         env:
           LH_THRESHOLD: "0.85"
@@ -62,6 +70,15 @@ jobs:
           score=$(jq '[.categories.performance.score,.categories.accessibility.score,.categories.seo.score] | add/3' lh.json)
           echo "Average score: $score"
           node -e "const score=parseFloat(process.argv[1]);const threshold=parseFloat(process.env.LH_THRESHOLD);if(!(score>=threshold)){console.error('Lighthouse average below threshold');process.exit(1);}" "$score"
+
+      - name: Persist audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-maint-lighthouse-report
+          path: lh.json
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: AI copy/link suggestions (PR only)
         env:
