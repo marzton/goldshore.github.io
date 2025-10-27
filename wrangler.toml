@@ -2,6 +2,8 @@ name = "goldshore"
 main = "apps/api-router/src/router.ts"
 compatibility_date = "2025-10-05"
 workers_dev = false
+# account_id is injected at runtime via CLOUDFLARE_ACCOUNT_ID when running in CI.
+account_id = "00000000000000000000000000000000"
 
 [[secrets_store_secrets]]
 binding     = "OPENAI_API_KEY"
@@ -21,16 +23,12 @@ secret_name = "CF_API_TOKEN"
 [vars]
 APP_NAME = "GoldShore"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "goldshore-db"
-database_id = "REPLACE_WITH_D1_ID"
-
 [env.production]
 routes = [
   { pattern = "goldshore.org/*",     zone_name = "goldshore.org" },
   { pattern = "www.goldshore.org/*", zone_name = "goldshore.org" }
 ]
+
 [env.preview]
 routes = [{ pattern = "preview.goldshore.org/*", zone_name = "goldshore.org" }]
 

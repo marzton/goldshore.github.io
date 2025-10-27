@@ -25,140 +25,104 @@ fi
 records=$(cat <<JSON
 [
   {"name": "goldshore.org", "type": "A", "content": "192.0.2.1", "proxied": true},
-  {"name": "www.goldshore.org", "type": "A", "content": "192.0.2.1", "proxied": true},
-  {"name": "preview.goldshore.org", "type": "A", "content": "192.0.2.1", "proxied": true},
-  {"name": "dev.goldshore.org", "type": "A", "content": "192.0.2.1", "proxied": true}
+  {"name": "www.goldshore.org", "type": "CNAME", "content": "goldshore.org", "proxied": true},
+  {"name": "preview.goldshore.org", "type": "CNAME", "content": "goldshore.org", "proxied": true},
+  {"name": "dev.goldshore.org", "type": "CNAME", "content": "goldshore.org", "proxied": true}
 ]
 JSON
 )
 
-echo "Syncing DNS records for zone $ZONE_NAME ($CF_ZONE_ID)"
-
-echo "$records" | jq -c '.[]' | while read -r record; do
-  name=$(echo "$record" | jq -r '.name')
-  type=$(echo "$record" | jq -r '.type')
-  content=$(echo "$record" | jq -r '.content')
-  proxied=$(echo "$record" | jq -r '.proxied')
-
-  existing=$(curl -s -X GET "$API/zones/$CF_ZONE_ID/dns_records?type=$type&name=$name" \
+api_request() {
+  local method=$1
+  local endpoint=$2
+  local data=${3-}
+  local response
+  local curl_args=(-s -X "$method" "$API$endpoint" \
     -H "Authorization: Bearer $CF_API_TOKEN" \
     -H "Content-Type: application/json")
-  record_id=$(echo "$existing" | jq -r '.result[0].id')
 
-  payload=$(jq -n --arg type "$type" --arg name "$name" --arg content "$content" --argjson proxied $proxied '{type:$type,name:$name,content:$content,proxied:$proxied,ttl:1}')
-
-  if [[ "$record_id" == "null" || -z "$record_id" ]]; then
-    echo "Creating $type $name -> $content"
-    curl -s -X POST "$API/zones/$CF_ZONE_ID/dns_records" \
-      -H "Authorization: Bearer $CF_API_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data "$payload" | jq '.success'
-  else
-    echo "Updating $type $name -> $content"
-    curl -s -X PUT "$API/zones/$CF_ZONE_ID/dns_records/$record_id" \
-      -H "Authorization: Bearer $CF_API_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data "$payload" | jq '.success'
+  if [[ -n "$data" ]]; then
+    curl_args+=(--data "$data")
   fi
 
-done
-API=https://api.cloudflare.com/client/v4
-AUTH_HEADER=("-H" "Authorization: Bearer ${CF_API_TOKEN}" "-H" "Content-Type: application/json")
-
-zone_response=$(curl -sS -X GET "${API}/zones?name=${ZONE_NAME}" "${AUTH_HEADER[@]}")
-zone_id=$(echo "$zone_response" | jq -r '.result[0].id')
-if [[ -z "$zone_id" || "$zone_id" == "null" ]]; then
-  echo "Unable to find zone ${ZONE_NAME}" >&2
-  exit 1
-fi
-
-declare -A RECORDS
-RECORDS["${ZONE_NAME}|A"]=192.0.2.1
-RECORDS["www.${ZONE_NAME}|CNAME"]=${ZONE_NAME}
-RECORDS["preview.${ZONE_NAME}|CNAME"]=${ZONE_NAME}
-RECORDS["dev.${ZONE_NAME}|CNAME"]=${ZONE_NAME}
-
-upsert_record() {
-  local name="$1"
-  local type="$2"
-  local content="$3"
-
-  existing=$(curl -sS -X GET "${API}/zones/${zone_id}/dns_records?name=${name}&type=${type}" "${AUTH_HEADER[@]}")
-  record_id=$(echo "$existing" | jq -r '.result[0].id')
-
-  payload=$(jq -n --arg type "$type" --arg name "$name" --arg content "$content" '{type:$type,name:$name,content:$content,proxied:true,ttl:1}')
-
-  if [[ -z "$record_id" || "$record_id" == "null" ]]; then
-    echo "Creating ${type} ${name}" >&2
-    curl -sS -X POST "${API}/zones/${zone_id}/dns_records" "${AUTH_HEADER[@]}" --data "$payload" >/dev/null
-  else
-    echo "Updating ${type} ${name}" >&2
-    curl -sS -X PUT "${API}/zones/${zone_id}/dns_records/${record_id}" "${AUTH_HEADER[@]}" --data "$payload" >/dev/null
-  fi
-}
-
-for key in "${!RECORDS[@]}"; do
-  name=${key%|*}
-  type=${key#*|}
-  upsert_record "$name" "$type" "${RECORDS[$key]}"
-done
-
-echo "DNS synchronized for ${ZONE_NAME}."
-ZONE_NAME=${1:-goldshore.org}
-API="https://api.cloudflare.com/client/v4"
-
-zone_id() {
-  curl -s -X GET "$API/zones?name=$ZONE_NAME" \
-    -H "Authorization: Bearer $CF_API_TOKEN" \
-    -H "Content-Type: application/json" | jq -r '.result[0].id'
-}
-
-upsert_record() {
-  local zone_id=$1
-  local name=$2
-  local type=$3
-  local content=$4
-  local proxied=$5
-
-  local existing_id
-  existing_id=$(curl -s -X GET "$API/zones/$zone_id/dns_records?type=$type&name=$name" \
-    -H "Authorization: Bearer $CF_API_TOKEN" \
-    -H "Content-Type: application/json" | jq -r '.result[0].id // ""')
-
-  local payload
-  payload=$(jq -n \
-    --arg type "$type" \
-    --arg name "$name" \
-    --arg content "$content" \
-    --argjson proxied $proxied '{type:$type,name:$name,content:$content,ttl:1,proxied:$proxied}')
-
-  if [[ -n "$existing_id" ]]; then
-    curl -s -X PUT "$API/zones/$zone_id/dns_records/$existing_id" \
-      -H "Authorization: Bearer $CF_API_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data "$payload" >/dev/null
-    echo "Updated $type record for $name"
-  else
-    curl -s -X POST "$API/zones/$zone_id/dns_records" \
-      -H "Authorization: Bearer $CF_API_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data "$payload" >/dev/null
-    echo "Created $type record for $name"
-  fi
-}
-
-main() {
-  local zone=$(zone_id)
-  if [[ -z "$zone" || "$zone" == "null" ]]; then
-    echo "Unable to resolve zone id for $ZONE_NAME" >&2
+  if ! response=$(curl "${curl_args[@]}"); then
+    echo "Cloudflare API request failed for $method $endpoint" >&2
     exit 1
   fi
 
-  local hosts=("$ZONE_NAME" "www.$ZONE_NAME" "preview.$ZONE_NAME" "dev.$ZONE_NAME")
-  for host in "${hosts[@]}"; do
-    upsert_record "$zone" "$host" "A" "192.0.2.1" true
-    upsert_record "$zone" "$host" "AAAA" "100::" true
-  done
+  echo "$response" | jq -e '.success' > /dev/null || {
+    echo "Cloudflare API request failed for $method $endpoint: $response" >&2
+    exit 1
+  }
+
+  echo "$response"
 }
 
-main "$@"
+mapfile -t record_entries < <(echo "$records" | jq -c '.[]')
+
+declare -A record_by_name
+declare -A record_type_by_name
+declare -a ordered_names=()
+
+for record in "${record_entries[@]}"; do
+  name=$(echo "$record" | jq -r '.name')
+  type=$(echo "$record" | jq -r '.type')
+
+  if [[ -n "${record_by_name[$name]:-}" ]]; then
+    if [[ "${record_type_by_name[$name]}" != "$type" ]]; then
+      echo "Conflicting record definitions for $name: ${record_type_by_name[$name]} vs $type" >&2
+      exit 1
+    fi
+  else
+    ordered_names+=("$name")
+  fi
+
+  record_by_name[$name]="$record"
+  record_type_by_name[$name]="$type"
+done
+
+echo "Syncing DNS records for zone $ZONE_NAME ($CF_ZONE_ID)"
+
+for name in "${ordered_names[@]}"; do
+  record="${record_by_name[$name]}"
+  type=$(echo "$record" | jq -r '.type')
+  content=$(echo "$record" | jq -r '.content')
+  proxied=$(echo "$record" | jq '.proxied // false')
+
+  existing=$(api_request "GET" "/zones/$CF_ZONE_ID/dns_records?name=$name&per_page=100")
+  declare -a existing_records=()
+  mapfile -t existing_records < <(echo "$existing" | jq -c '.result[]?')
+
+  record_id=""
+
+  for existing_record in "${existing_records[@]}"; do
+    existing_id=$(echo "$existing_record" | jq -r '.id')
+    existing_type=$(echo "$existing_record" | jq -r '.type')
+
+    if [[ "$existing_type" != "$type" ]]; then
+      echo "Removing existing $existing_type record for $name to create $type"
+      api_request "DELETE" "/zones/$CF_ZONE_ID/dns_records/$existing_id" > /dev/null
+      continue
+    fi
+
+    if [[ -z "$record_id" ]]; then
+      record_id="$existing_id"
+      continue
+    fi
+
+    echo "Removing duplicate $existing_type record for $name (id: $existing_id)"
+    api_request "DELETE" "/zones/$CF_ZONE_ID/dns_records/$existing_id" > /dev/null
+  done
+
+  payload=$(jq -n --arg type "$type" --arg name "$name" --arg content "$content" --argjson proxied "$proxied" '{type:$type,name:$name,content:$content,proxied:$proxied,ttl:1}')
+
+  if [[ -z "$record_id" ]]; then
+    echo "Creating $type $name -> $content"
+    api_request "POST" "/zones/$CF_ZONE_ID/dns_records" "$payload" > /dev/null
+  else
+    echo "Updating $type $name -> $content"
+    api_request "PUT" "/zones/$CF_ZONE_ID/dns_records/$record_id" "$payload" > /dev/null
+  fi
+done
+
+echo "DNS synchronized for ${ZONE_NAME}."
