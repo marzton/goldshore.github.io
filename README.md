@@ -24,11 +24,11 @@ The `/api/contact` Pages Function depends on two environment variables:
 | --- | --- | --- |
 | `FORMSPREE_ENDPOINT` | Destination endpoint provided by Formspree | `wrangler secret put FORMSPREE_ENDPOINT` (or add to `.dev.vars` for local previews) |
 | `TURNSTILE_SECRET` | Server-side Turnstile verification secret | `wrangler secret put TURNSTILE_SECRET` (or add to `.dev.vars`) |
-| `OPENAI_API_KEY` | Authenticates calls to the `/api/gpt` handler | `wrangler secret put OPENAI_API_KEY` (or add to `.dev.vars`) |
-| `GPT_PROXY_TOKEN` | Shared secret browsers must send when calling `/api/gpt` | `wrangler secret put GPT_PROXY_TOKEN` (or add to `.dev.vars`) |
+| `OPENAI_API_KEY` | Authenticates calls to the `/api/gpt` handler | `wrangler secret put OPENAI_API_KEY --config wrangler.worker.toml` (or add to `.dev.vars`) |
+| `GPT_PROXY_TOKEN` | Shared secret browsers must send when calling `/api/gpt` | `wrangler secret put GPT_PROXY_TOKEN --config wrangler.worker.toml` (or add to `.dev.vars`) |
 | `GPT_ALLOWED_ORIGINS` | Comma-separated list of origins that receive CORS access | Define in `wrangler.worker.toml` (`[vars]`) or add to `.dev.vars` |
 
-Values added with `wrangler secret put` are encrypted and **not** committed to the repository. When running `wrangler pages dev` locally you can copy `.dev.vars.example` to `.dev.vars` and provide temporary development credentials. The public Turnstile site key used in the homepage markup can remain versioned because it is intentionally exposed to browsers.
+Values added with `wrangler secret put` are encrypted and **not** committed to the repository. When running `wrangler pages dev` locally you can copy `.dev.vars.example` to `.dev.vars` and provide temporary development credentials. When managing worker-only secrets (such as `OPENAI_API_KEY` and `GPT_PROXY_TOKEN`), always pass `--config wrangler.worker.toml` so the values are applied to the router instead of the Pages project. The public Turnstile site key used in the homepage markup can remain versioned because it is intentionally exposed to browsers.
 
 ### Analytics
 
