@@ -5,6 +5,21 @@ export interface Env {
 
 type JsonValue = Record<string, any> | null;
 
+type RouteParams = Record<string, string>;
+
+interface RouteTools {
+  jsonHeaders: HeadersInit;
+  corsHeaders: HeadersInit;
+  respond: (body: JsonValue | Record<string, any>, status?: number, headers?: HeadersInit) => Response;
+}
+
+type RouteHandler = (
+  req: Request,
+  env: Env,
+  params: RouteParams,
+  tools: RouteTools
+) => Promise<Response | JsonValue | Record<string, any>> | Response | JsonValue | Record<string, any>;
+
 const cors = (req: Request, origins: string) => {
   const o = new URL(req.url).origin;
   const allowed = origins.split(",").map(s=>s.trim());
@@ -31,142 +46,150 @@ const jsonResponse = (body: JsonValue | Record<string, any>, status = 200, heade
   return new Response(JSON.stringify(body), { status, headers: merged });
 };
 
-const router = {
+const router: Record<string, Partial<Record<string, RouteHandler>>> = {
   "/v1/health": {
-    GET: () => ({ ok: true, ts: Date.now() }),
+    GET: (_req, _env, _params, tools) => tools.respond({ ok: true, ts: Date.now() }),
   },
   "/v1/whoami": {
-    GET: (req: Request) => {
+    GET: (req, _env, _params, tools) => {
       const email = req.headers.get("cf-access-authenticated-user-email");
       const ok = !!email;
-      return ok ? { ok, email } : { ok: false, error: "UNAUTHENTICATED" };
+      return tools.respond(ok ? { ok, email } : { ok: false, error: "UNAUTHENTICATED" });
     },
   },
   "/v1/lead": {
-    POST: async (req: Request, env: Env) => {
-      const headers = { ...JSON_CONTENT_HEADERS, ...cors(req, env.CORS_ORIGINS) };
+    POST: async (req, env, _params, tools) => {
+      const headers = tools.jsonHeaders;
       const ct = req.headers.get("content-type") || "";
-      const body = ct.includes("application/json") ? await req.json() : Object.fromEntries((await req.formData()).entries());
-      const email = (body.email||"").toString().trim();
-      const emailRegex = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-      if (!email) return new Response(JSON.stringify({ ok:false, error:"EMAIL_REQUIRED" }), { status:400, headers });
-      if (!emailRegex.test(email)) return new Response(JSON.stringify({ ok:false, error:"INVALID_EMAIL" }), { status:400, headers });
+      const body = ct.includes("application/json")
+        ? await req.json()
+        : Object.fromEntries((await req.formData()).entries());
+      const email = (body.email || "").toString().trim();
+      const emailRegex =
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+      if (!email) {
+        return new Response(JSON.stringify({ ok: false, error: "EMAIL_REQUIRED" }), { status: 400, headers });
+      }
+      if (!emailRegex.test(email)) {
+        return new Response(JSON.stringify({ ok: false, error: "INVALID_EMAIL" }), { status: 400, headers });
+      }
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS leads (email TEXT PRIMARY KEY, ts TEXT DEFAULT CURRENT_TIMESTAMP)").run();
       await env.DB.prepare("INSERT OR IGNORE INTO leads (email) VALUES (?)").bind(email).run();
-      return { ok: true };
+      return tools.respond({ ok: true });
     },
   },
   "/v1/orders": {
-    GET: async (req: Request, env: Env) => {
-      const jsonHeaders = { ...JSON_CONTENT_HEADERS, ...cors(req, env.CORS_ORIGINS) };
-      await env.DB.prepare("CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, symbol TEXT, qty REAL, side TEXT, ts TEXT DEFAULT CURRENT_TIMESTAMP)").run();
+    GET: async (_req, env, _params, tools) => {
+      await env.DB.prepare(
+        "CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, symbol TEXT, qty REAL, side TEXT, ts TEXT DEFAULT CURRENT_TIMESTAMP)"
+      ).run();
       const { results } = await env.DB.prepare("SELECT * FROM orders ORDER BY ts DESC LIMIT 50").all();
-      return jsonResponse({ ok: true, data: results }, 200, jsonHeaders);
+      return tools.respond({ ok: true, data: results });
     },
   },
   "/v1/customers": {
-    POST: async (req: Request, env: Env) => {
+    POST: async (req, env, _params, tools) => {
       const { name, email } = await req.json();
       const customer = await createCustomer(env.DB, name, email);
-      return new Response(JSON.stringify({ ok: true, data: customer }), { status: 201 });
+      return tools.respond({ ok: true, data: customer }, 201);
     },
-    GET: async (req: Request, env: Env) => {
+    GET: async (_req, env, _params, tools) => {
       const customers = await listCustomers(env.DB);
-      return { ok: true, data: customers };
+      return tools.respond({ ok: true, data: customers });
     },
   },
   "/v1/customers/:id": {
-    GET: async (req: Request, env: Env, params: { id: string }) => {
+    GET: async (_req, env, params, tools) => {
       const customer = await getCustomer(env.DB, params.id);
-      return { ok: true, data: customer };
+      return tools.respond({ ok: true, data: customer });
     },
-    PUT: async (req: Request, env: Env, params: { id: string }) => {
+    PUT: async (req, env, params, tools) => {
       const { name, email } = await req.json();
       await updateCustomer(env.DB, params.id, name, email);
-      return { ok: true };
+      return tools.respond({ ok: true });
     },
-    DELETE: async (req: Request, env: Env, params: { id: string }) => {
+    DELETE: async (_req, env, params, tools) => {
       await deleteCustomer(env.DB, params.id);
-      return { ok: true };
+      return new Response(null, { status: 204, headers: tools.corsHeaders });
     },
   },
   "/v1/subscriptions": {
-    POST: async (req: Request, env: Env) => {
+    POST: async (req, env, _params, tools) => {
       const { name, price, billing_cycle } = await req.json();
       const subscription = await createSubscription(env.DB, name, price, billing_cycle);
-      return new Response(JSON.stringify({ ok: true, data: subscription }), { status: 201 });
+      return tools.respond({ ok: true, data: subscription }, 201);
     },
-    GET: async (req: Request, env: Env) => {
+    GET: async (_req, env, _params, tools) => {
       const subscriptions = await listSubscriptions(env.DB);
-      return { ok: true, data: subscriptions };
+      return tools.respond({ ok: true, data: subscriptions });
     },
   },
   "/v1/subscriptions/:id": {
-    GET: async (req: Request, env: Env, params: { id: string }) => {
+    GET: async (_req, env, params, tools) => {
       const subscription = await getSubscription(env.DB, params.id);
-      return { ok: true, data: subscription };
+      return tools.respond({ ok: true, data: subscription });
     },
-    PUT: async (req: Request, env: Env, params: { id: string }) => {
+    PUT: async (req, env, params, tools) => {
       const { name, price, billing_cycle } = await req.json();
       await updateSubscription(env.DB, params.id, name, price, billing_cycle);
-      return { ok: true };
+      return tools.respond({ ok: true });
     },
-    DELETE: async (req: Request, env: Env, params: { id: string }) => {
+    DELETE: async (_req, env, params, tools) => {
       await deleteSubscription(env.DB, params.id);
-      return { ok: true };
+      return tools.respond({ ok: true });
     },
   },
   "/v1/risk/config": {
-    POST: async (req: Request, env: Env) => {
+    POST: async (req, env, _params, tools) => {
       const { name, is_published, limits } = await req.json();
       const config = await setRiskConfig(env.DB, name, is_published, limits);
-      return new Response(JSON.stringify({ ok: true, data: config }), { status: 201 });
+      return tools.respond({ ok: true, data: config }, 201);
     },
-    GET: async (req: Request, env: Env) => {
+    GET: async (_req, env, _params, tools) => {
       const config = await getRiskConfig(env.DB);
-      return { ok: true, data: config };
+      return tools.respond({ ok: true, data: config });
     },
   },
   "/v1/risk/check": {
-    POST: async (req: Request, env: Env) => {
+    POST: async (req, env, _params, tools) => {
       const order = await req.json();
       const result = await checkRisk(env.DB, order);
-      return result;
+      return tools.respond(result);
     },
   },
   "/v1/risk/killswitch": {
-    POST: async (req: Request, env: Env) => {
+    POST: async (_req, env, _params, tools) => {
       const result = await killSwitch(env.DB);
-      return result;
+      return tools.respond(result);
     },
   },
   "/v1/customer_subscriptions": {
-    POST: async (req: Request, env: Env) => {
+    POST: async (req, env, _params, tools) => {
       const { customer_id, subscription_id } = await req.json();
       const customerSubscription = await createCustomerSubscription(env.DB, customer_id, subscription_id);
-      return new Response(JSON.stringify({ ok: true, data: customerSubscription }), { status: 201 });
+      return tools.respond({ ok: true, data: customerSubscription }, 201);
     },
-    GET: async (req: Request, env: Env) => {
+    GET: async (req, env, _params, tools) => {
       const url = new URL(req.url);
       const customer_id = url.searchParams.get("customer_id");
       const customerSubscriptions = await listCustomerSubscriptions(env.DB, customer_id);
-      return { ok: true, data: customerSubscriptions };
+      return tools.respond({ ok: true, data: customerSubscriptions });
     },
   },
   "/v1/customer_subscriptions/:id": {
-    GET: async (req: Request, env: Env, params: { id: string }) => {
+    GET: async (_req, env, params, tools) => {
       const customerSubscription = await getCustomerSubscription(env.DB, params.id);
-      return { ok: true, data: customerSubscription };
+      return tools.respond({ ok: true, data: customerSubscription });
     },
-    PATCH: async (req: Request, env: Env, params: { id: string }) => {
+    PATCH: async (req, env, params, tools) => {
       const { status } = await req.json();
       await updateCustomerSubscription(env.DB, params.id, status);
       const customerSubscription = await getCustomerSubscription(env.DB, params.id);
-      return { ok: true, data: customerSubscription };
+      return tools.respond({ ok: true, data: customerSubscription });
     },
-    DELETE: async (req: Request, env: Env, params: { id: string }) => {
+    DELETE: async (_req, env, params, tools) => {
       await deleteCustomerSubscription(env.DB, params.id);
-      return new Response(null, { status: 204 });
+      return new Response(null, { status: 204, headers: tools.corsHeaders });
     },
   },
 };
@@ -176,7 +199,15 @@ export default {
     const corsHeaders = cors(req, env.CORS_ORIGINS);
     const jsonHeaders = { ...JSON_CONTENT_HEADERS, ...corsHeaders };
     const headers = { ...jsonHeaders };
-    if (req.method === "OPTIONS") return new Response(null, { headers });
+    const tools: RouteTools = {
+      corsHeaders,
+      jsonHeaders,
+      respond: (body, status = 200, customHeaders = jsonHeaders) =>
+        jsonResponse(body, status, customHeaders),
+    };
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers });
+    }
 
     const url = new URL(req.url);
     const path = url.pathname;
@@ -194,11 +225,11 @@ export default {
         });
 
         if (router[route][method]) {
-          const result = await router[route][method](req, env, params);
+          const result = await router[route][method]!(req, env, params, tools);
           if (result instanceof Response) {
             return result;
           }
-          return new Response(JSON.stringify(result), { headers });
+          return tools.respond(result as JsonValue | Record<string, any>);
         }
       }
     }
@@ -232,7 +263,7 @@ export default {
       }
     }
 
-    return new Response(JSON.stringify({ ok: false, error: "NOT_FOUND" }), { status: 404, headers });
+    return tools.respond({ ok: false, error: "NOT_FOUND" }, 404);
   },
 
   async queue(batch: MessageBatch<any>) {
