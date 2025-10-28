@@ -81,6 +81,70 @@
       ]
     },
     {
+      "name": "GoldShore Foundation Admin",
+      "domain": "goldshore.foundation/admin",
+      "type": "self_hosted",
+      "session_duration": "24h",
+      "policies": [
+        {
+          "name": "GoldShore Team",
+          "precedence": 1,
+          "decision": "allow",
+          "include": [
+            { "email_domain": { "domain": "goldshore.org" } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GoldShoreFoundation Admin",
+      "domain": "goldshorefoundation.org/admin",
+      "type": "self_hosted",
+      "session_duration": "24h",
+      "policies": [
+        {
+          "name": "GoldShore Team",
+          "precedence": 1,
+          "decision": "allow",
+          "include": [
+            { "email_domain": { "domain": "goldshore.org" } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Fortune Fund Admin",
+      "domain": "fortune-fund.com/admin",
+      "type": "self_hosted",
+      "session_duration": "24h",
+      "policies": [
+        {
+          "name": "GoldShore Team",
+          "precedence": 1,
+          "decision": "allow",
+          "include": [
+            { "email_domain": { "domain": "goldshore.org" } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Fortune Fund Games Admin",
+      "domain": "fortune-fund.games/admin",
+      "type": "self_hosted",
+      "session_duration": "24h",
+      "policies": [
+        {
+          "name": "GoldShore Team",
+          "precedence": 1,
+          "decision": "allow",
+          "include": [
+            { "email_domain": { "domain": "goldshore.org" } }
+          ]
+        }
+      ]
+    },
+    {
       "name": "GoldShore Preview",
       "domain": "preview.goldshore.org",
       "type": "self_hosted",
