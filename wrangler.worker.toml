@@ -37,6 +37,11 @@ routes = [
   { pattern = "admin.fortune-fund.games/*",  zone_name = "fortune-fund.games" },
   { pattern = "api.fortune-fund.games/*",    zone_name = "fortune-fund.games" },
   { pattern = "web.fortune-fund.games/*",    zone_name = "fortune-fund.games" }
+  { pattern = "api.goldshore.org/*", zone_name = "goldshore.org" },
+  { pattern = "api.goldshore.foundation/*", zone_name = "goldshore.foundation" },
+  { pattern = "api.goldshorefoundation.org/*", zone_name = "goldshorefoundation.org" },
+  { pattern = "api.fortune-fund.com/*", zone_name = "fortune-fund.com" },
+  { pattern = "api.fortune-fund.games/*", zone_name = "fortune-fund.games" }
 ]
 
 [env.preview]
@@ -46,7 +51,18 @@ routes = [
   { pattern = "preview.fortune-fund.games/*", zone_name = "fortune-fund.games" },
   { pattern = "preview.goldshore.foundation/*", zone_name = "goldshore.foundation" },
   { pattern = "preview.goldshorefoundation.org/*", zone_name = "goldshorefoundation.org" }
+  { pattern = "preview.goldshore.org/*", zone_name = "goldshore.org" },
+  { pattern = "preview.goldshore.foundation/*", zone_name = "goldshore.foundation" },
+  { pattern = "preview.goldshorefoundation.org/*", zone_name = "goldshorefoundation.org" },
+  { pattern = "preview.fortune-fund.com/*", zone_name = "fortune-fund.com" },
+  { pattern = "preview.fortune-fund.games/*", zone_name = "fortune-fund.games" }
 ]
 
 [env.dev]
-routes = [{ pattern = "dev.goldshore.org/*", zone_name = "goldshore.org" }]
+routes = [
+  { pattern = "dev.goldshore.org/*", zone_name = "goldshore.org" },
+  { pattern = "dev.goldshore.foundation/*", zone_name = "goldshore.foundation" },
+  { pattern = "dev.goldshorefoundation.org/*", zone_name = "goldshorefoundation.org" },
+  { pattern = "dev.fortune-fund.com/*", zone_name = "fortune-fund.com" },
+  { pattern = "dev.fortune-fund.games/*", zone_name = "fortune-fund.games" }
+]
