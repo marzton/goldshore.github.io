@@ -91,17 +91,17 @@ jobs:
         uses: actions/checkout@v4
       - name: Apply Pages and Worker configuration
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" || -z "${CF_ACCOUNT_ID:-}" ]]; then
+          if [[ -z "${CF_API_TOKEN:-}" || -z "${CF_ACCOUNT_ID:-}" ]]; then
             echo "::warning::Cloudflare credentials not configured; skipping apply."
             exit 0
           fi
 
           API="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
-          AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
+          AUTH=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
 
           for file in infra/policies/cloudflare/pages.*.json; do
             project=$(jq -r '.project' "${file}")
@@ -118,7 +118,7 @@ jobs:
             curl -sS -X PUT "${API}/workers/services/${script}/environments/production" "${AUTH[@]}" --data "${payload}" >/dev/null
           fi
 
-          echo "DNS policy is declarative only; reference infra/scripts/upsert-goldshore-dns.sh for enforcement."
+          echo "DNS policy is declarative only; reference infra/scripts/enforce-dns.sh for enforcement."
 
   notify:
     name: Summary
