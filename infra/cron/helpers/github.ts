@@ -44,12 +44,14 @@ export async function createFixBranchAndPR(
     }
   }
 
+  let existingPR: any | null = null;
+
   if (!headExists) {
     await gh.rest.git.createRef({ owner, repo, ref: `refs/heads/${head}`, sha: baseSha });
   } else {
     const existingPRs = await gh.rest.pulls.list({ owner, repo, state: "open", head: `${owner}:${head}`, per_page: 1 });
     if (existingPRs.data.length > 0) {
-      return existingPRs.data[0];
+      existingPR = existingPRs.data[0];
     }
   }
 
@@ -80,6 +82,10 @@ export async function createFixBranchAndPR(
   });
 
   await gh.rest.git.updateRef({ owner, repo, ref: `heads/${head}`, sha: commit.data.sha, force: true });
+
+  if (existingPR) {
+    return existingPR;
+  }
 
   const pr = await gh.rest.pulls.create({ owner, repo, head, base, title, body });
   return pr.data;
