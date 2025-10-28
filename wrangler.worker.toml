@@ -10,6 +10,8 @@ PRODUCTION_ASSETS = "https://goldshore-org.pages.dev"
 PREVIEW_ASSETS = "https://goldshore-org-preview.pages.dev"
 DEV_ASSETS = "https://goldshore-org-dev.pages.dev"
 GPT_ALLOWED_ORIGINS = "https://goldshore.org, https://www.goldshore.org, https://preview.goldshore.org, https://dev.goldshore.org"
+CF_ACCESS_AUD = "15b3d02e775a7c84ac87a41d671bff94da19cb968c3a07c72b087d0e2ccafaf5"
+CF_ACCESS_JWKS_URL = "https://goldshore.cloudflareaccess.com/cdn-cgi/access/certs"
 
 # Secrets such as FORMSPREE_ENDPOINT and TURNSTILE_SECRET are provided via
 # `wrangler secret put …` or `.dev.vars` in local development.
