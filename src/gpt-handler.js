@@ -48,11 +48,12 @@ function jsonResponse(body, init = {}, corsOrigin = null) {
 
   headers.set("Access-Control-Allow-Methods", ALLOWED_METHODS);
   headers.set("Access-Control-Allow-Headers", ALLOWED_HEADERS);
+
   return headers;
 }
 
 function jsonResponse(body, init = {}, corsOrigin = null) {
-  const headers = new Headers(init.headers || {});
+  const headers = new Headers(init.headers);
   const corsHeaders = buildCorsHeaders(corsOrigin);
 
   if (init.headers) {
@@ -119,6 +120,11 @@ function validateOrigin(request, env) {
     return { ok: true, origin: null };
   }
 
+  const allowedOrigin = resolveAllowedOrigin(requestOrigin, allowedOrigins);
+  if (!allowedOrigin) {
+    return {
+      ok: false,
+      response: errorResponse("Origin not allowed.", 403, undefined, requestOrigin),
   if (!allowedOrigins.includes(requestOrigin)) {
     return {
       ok: false,
@@ -126,7 +132,31 @@ function validateOrigin(request, env) {
     };
   }
 
-  return { ok: true, origin: requestOrigin };
+  return { ok: true, origin: allowedOrigin };
+}
+
+function getExpectedSecret(env) {
+  return env.GPT_SHARED_SECRET ?? env.GPT_PROXY_SECRET ?? null;
+}
+
+function extractProvidedToken(request) {
+  const authorization = request.headers.get("Authorization");
+  const bearerToken = extractBearerToken(authorization);
+  if (bearerToken) {
+    return bearerToken;
+  }
+
+  const proxyHeader = request.headers.get("X-GPT-Proxy-Token");
+  if (proxyHeader && proxyHeader.trim() !== "") {
+    return proxyHeader.trim();
+  }
+
+  const apiKeyHeader = request.headers.get("x-api-key");
+  if (apiKeyHeader && apiKeyHeader.trim() !== "") {
+    return apiKeyHeader.trim();
+  }
+
+  return null;
 }
 
 function authenticateRequest(request, env, corsOrigin) {
@@ -253,7 +283,6 @@ function buildChatCompletionPayload(payload) {
   }
 
   const requestBody = {
-    model: typeof model === "string" ? model.trim() : DEFAULT_MODEL,
     model: trimmedModel,
     messages: normalizedMessages,
   };
@@ -301,8 +330,6 @@ async function handlePost(request, env, corsOrigin) {
     );
   }
 
-  const wantsStream = requestBody.stream === true;
-
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -318,6 +345,11 @@ async function handlePost(request, env, corsOrigin) {
     try {
       data = JSON.parse(responseText);
     } catch (error) {
+      return errorResponse(
+        "Unexpected response from OpenAI API.",
+        502,
+        { body: responseText },
+        corsOrigin,
       return jsonResponse(
         {
           error: "Unexpected response from OpenAI API.",
