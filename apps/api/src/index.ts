@@ -21,6 +21,16 @@ import { createSubscription, getSubscription, updateSubscription, deleteSubscrip
 import { setRiskConfig, getRiskConfig, checkRisk, killSwitch } from "./risk";
 import { createCustomerSubscription, getCustomerSubscription, updateCustomerSubscription, deleteCustomerSubscription, listCustomerSubscriptions } from "./customer_subscriptions";
 
+const JSON_CONTENT_HEADERS: HeadersInit = { "content-type": "application/json" };
+
+const jsonResponse = (body: JsonValue | Record<string, any>, status = 200, headers: HeadersInit = JSON_CONTENT_HEADERS) => {
+  const merged = new Headers(headers);
+  if (!merged.has("content-type")) {
+    merged.set("content-type", "application/json");
+  }
+  return new Response(JSON.stringify(body), { status, headers: merged });
+};
+
 const router = {
   "/v1/health": {
     GET: () => ({ ok: true, ts: Date.now() }),
@@ -34,6 +44,7 @@ const router = {
   },
   "/v1/lead": {
     POST: async (req: Request, env: Env) => {
+      const headers = { ...JSON_CONTENT_HEADERS, ...cors(req, env.CORS_ORIGINS) };
       const ct = req.headers.get("content-type") || "";
       const body = ct.includes("application/json") ? await req.json() : Object.fromEntries((await req.formData()).entries());
       const email = (body.email||"").toString().trim();
@@ -47,42 +58,10 @@ const router = {
   },
   "/v1/orders": {
     GET: async (req: Request, env: Env) => {
+      const jsonHeaders = { ...JSON_CONTENT_HEADERS, ...cors(req, env.CORS_ORIGINS) };
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, symbol TEXT, qty REAL, side TEXT, ts TEXT DEFAULT CURRENT_TIMESTAMP)").run();
       const { results } = await env.DB.prepare("SELECT * FROM orders ORDER BY ts DESC LIMIT 50").all();
       return jsonResponse({ ok: true, data: results }, 200, jsonHeaders);
-    }
-
-    const segments = url.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
-    if (segments[0] === "v1") {
-      const resource = segments[1];
-      const id = segments[2];
-
-      if (resource === "customers") {
-        return this.handleCustomers(req, env, jsonHeaders, corsHeaders, id);
-      }
-
-      if (resource === "subscriptions") {
-        return this.handleSubscriptions(req, env, jsonHeaders, corsHeaders, id);
-      }
-
-      if (resource === "customer_subscriptions") {
-        return this.handleCustomerSubscriptions(req, env, jsonHeaders, corsHeaders, id);
-      }
-
-      if (resource === "risk") {
-        const riskResource = segments[2];
-        if (riskResource === "limits" && req.method === "GET" && segments.length === 3) {
-          return this.handleRiskLimits(env, jsonHeaders);
-        }
-        if (riskResource === "config") {
-          const configId = segments[3];
-          return this.handleRiskConfig(req, env, jsonHeaders, corsHeaders, configId);
-        }
-      }
-    }
-
-    return jsonResponse({ ok: false, error: "NOT_FOUND" }, 404, jsonHeaders);
-      return { ok: true, data: results };
     },
   },
   "/v1/customers": {
@@ -194,7 +173,9 @@ const router = {
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const headers = { "content-type": "application/json", ...cors(req, env.CORS_ORIGINS) };
+    const corsHeaders = cors(req, env.CORS_ORIGINS);
+    const jsonHeaders = { ...JSON_CONTENT_HEADERS, ...corsHeaders };
+    const headers = { ...jsonHeaders };
     if (req.method === "OPTIONS") return new Response(null, { headers });
 
     const url = new URL(req.url);
@@ -218,6 +199,35 @@ export default {
             return result;
           }
           return new Response(JSON.stringify(result), { headers });
+        }
+      }
+    }
+
+    const segments = path.replace(/\/+$/, "").split("/").filter(Boolean);
+    if (segments[0] === "v1") {
+      const resource = segments[1];
+      const id = segments[2];
+
+      if (resource === "customers") {
+        return this.handleCustomers(req, env, jsonHeaders, corsHeaders, id);
+      }
+
+      if (resource === "subscriptions") {
+        return this.handleSubscriptions(req, env, jsonHeaders, corsHeaders, id);
+      }
+
+      if (resource === "customer_subscriptions") {
+        return this.handleCustomerSubscriptions(req, env, jsonHeaders, corsHeaders, id);
+      }
+
+      if (resource === "risk") {
+        const riskResource = segments[2];
+        if (riskResource === "limits" && req.method === "GET" && segments.length === 3) {
+          return this.handleRiskLimits(env, jsonHeaders);
+        }
+        if (riskResource === "config") {
+          const configId = segments[3];
+          return this.handleRiskConfig(req, env, jsonHeaders, corsHeaders, configId);
         }
       }
     }
