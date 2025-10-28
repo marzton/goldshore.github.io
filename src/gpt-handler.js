@@ -66,8 +66,6 @@ function buildCorsHeaders(origin) {
     headers.set(key, value);
   }
 
-function buildCorsHeaders(origin) {
-  const headers = new Headers();
   if (origin) {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Vary", "Origin");
@@ -75,21 +73,14 @@ function buildCorsHeaders(origin) {
 
   headers.set("Access-Control-Allow-Methods", ALLOWED_METHODS);
   headers.set("Access-Control-Allow-Headers", ALLOWED_HEADERS);
+
   return headers;
 }
 
 function jsonResponse(body, init = {}, corsOrigin = null) {
-  const headers = new Headers(init.headers || {});
+  const headers = new Headers(init.headers);
   const corsHeaders = buildCorsHeaders(corsOrigin);
 
-  if (init.headers) {
-    const initHeaders = new Headers(init.headers);
-    for (const [key, value] of initHeaders.entries()) {
-      headers.set(key, value);
-    }
-  }
-
-  const corsHeaders = buildCorsHeaders(origin);
   for (const [key, value] of corsHeaders.entries()) {
     headers.set(key, value);
   }
@@ -161,24 +152,11 @@ function validateOrigin(request, env) {
   if (!allowedOrigin) {
     return {
       ok: false,
-      response: errorResponse("Origin not allowed.", 403),
-    };
-  }
-
-  return { ok: true, origin: allowedOrigin };
-}
-
-function extractBearerToken(header) {
-  if (typeof header !== "string") {
-    return null;
-  if (!allowedOrigins.includes(requestOrigin)) {
-    return {
-      ok: false,
       response: errorResponse("Origin not allowed.", 403, undefined, requestOrigin),
     };
   }
 
-  return { ok: true, origin: requestOrigin };
+  return { ok: true, origin: allowedOrigin };
 }
 
 function getExpectedSecret(env) {
@@ -202,8 +180,7 @@ function extractProvidedToken(request) {
     return apiKeyHeader.trim();
   }
 
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  return match ? match[1].trim() : null;
+  return null;
 }
 
 function authenticateRequest(request, env, corsOrigin) {
@@ -243,7 +220,7 @@ function authenticateRequest(request, env, corsOrigin) {
     };
   }
 
-  return null;
+  return { ok: true };
 }
 
 function normalizeMessage(message, index) {
@@ -348,7 +325,6 @@ function buildChatCompletionPayload(payload) {
   }
 
   const requestBody = {
-    model: typeof model === "string" ? model.trim() : DEFAULT_MODEL,
     model: trimmedModel,
     messages: normalizedMessages,
   };
@@ -396,8 +372,6 @@ async function handlePost(request, env, corsOrigin) {
     );
   }
 
-  const wantsStream = requestBody.stream === true;
-
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -416,7 +390,6 @@ async function handlePost(request, env, corsOrigin) {
       return errorResponse(
         "Unexpected response from OpenAI API.",
         502,
-        responseText,
         { body: responseText },
         corsOrigin,
       );
