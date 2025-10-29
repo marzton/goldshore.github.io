@@ -71,75 +71,55 @@ const sanitizedBuildTimeKey =
 
   <script>
     (function () {
-      const revealWidget = (siteKey) => {
-        if (!siteKey) {
-          return;
-        }
-
-        const wrapper = document.getElementById('turnstile-wrapper');
-        if (wrapper) {
-          wrapper.style.display = 'flex';
-        }
-
-        const renderWidget = () => {
-          if (typeof turnstile === 'undefined') {
-            setTimeout(renderWidget, 100);
-            return;
-          }
-
-          try {
-            turnstile.render('#turnstile-container', {
-              sitekey: siteKey,
-              theme: 'dark'
-            });
-          } catch (error) {
-            console.error('Failed to render Turnstile widget', error);
-          }
-        };
-
-        renderWidget();
-      };
-
-      const bootstrap = async () => {
-        const wrapper = document.getElementById('turnstile-wrapper');
-        const buildTimeKey = wrapper?.dataset?.buildSitekey;
-        if (buildTimeKey && buildTimeKey !== 'undefined') {
-          revealWidget(buildTimeKey);
-          return;
-        }
-
-        try {
-          const response = await fetch('/api/turnstile/site-key');
-          if (!response.ok) {
-            return;
-          }
-
-          const payload = await response.json();
-          if (payload && payload.siteKey) {
-            revealWidget(payload.siteKey);
-          }
-        } catch (error) {
-          console.error('Failed to fetch Turnstile site key', error);
-        }
-      };
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bootstrap);
-      } else {
-        bootstrap();
-      }
-    })();
-  </script>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-  <script>
-    (function () {
       const wrapper = document.getElementById('turnstile-wrapper');
       const container = document.getElementById('turnstile-container');
       const errorMessage = document.getElementById('turnstile-error');
 
-      async function fetchSiteKey() {
-        const response = await fetch('/api/turnstile-site-key', {
-          headers: { 'accept': 'application/json' }
+      function showWidgetContainer() {
+        if (wrapper) {
+          wrapper.style.display = 'flex';
+        }
+      }
+
+      function showErrorMessage() {
+        if (errorMessage) {
+          errorMessage.style.display = 'block';
+        }
+      }
+
+      async function ensureTurnstileScript() {
+        if (window.turnstile && typeof window.turnstile.render === 'function') {
+          return window.turnstile;
+        }
+
+        const existing = document.querySelector('script[data-turnstile]');
+        if (existing) {
+          return new Promise((resolve, reject) => {
+            existing.addEventListener('load', () => resolve(window.turnstile), { once: true });
+            existing.addEventListener('error', reject, { once: true });
+          });
+        }
+
+        return new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+          script.async = true;
+          script.defer = true;
+          script.dataset.turnstile = 'true';
+          script.addEventListener('load', () => resolve(window.turnstile), { once: true });
+          script.addEventListener('error', reject, { once: true });
+          document.head.appendChild(script);
+        });
+      }
+
+      async function resolveSiteKey() {
+        const buildTimeKey = wrapper?.dataset?.buildSitekey;
+        if (buildTimeKey && buildTimeKey !== 'undefined') {
+          return buildTimeKey;
+        }
+
+        const response = await fetch('/api/turnstile/site-key', {
+          headers: { accept: 'application/json' }
         });
 
         if (!response.ok) {
@@ -154,55 +134,30 @@ const sanitizedBuildTimeKey =
         return payload.siteKey;
       }
 
-      function ensureTurnstileScript() {
-        return new Promise((resolve, reject) => {
-          if (window.turnstile && typeof window.turnstile.render === 'function') {
-            resolve(window.turnstile);
-            return;
-          }
-
-          const existing = document.querySelector('script[data-turnstile]');
-          if (existing) {
-            existing.addEventListener('load', () => resolve(window.turnstile), { once: true });
-            existing.addEventListener('error', reject, { once: true });
-            return;
-          }
-
-          const script = document.createElement('script');
-          script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-          script.async = true;
-          script.defer = true;
-          script.dataset.turnstile = 'true';
-          script.addEventListener('load', () => resolve(window.turnstile), { once: true });
-          script.addEventListener('error', reject, { once: true });
-          document.head.appendChild(script);
-        });
-      }
-
       async function initTurnstile() {
-        if (!container) return;
+        if (!container) {
+          return;
+        }
 
         try {
-          const siteKey = await fetchSiteKey();
-          const turnstile = await ensureTurnstileScript();
+          const [siteKey, turnstile] = await Promise.all([
+            resolveSiteKey(),
+            ensureTurnstileScript()
+          ]);
 
           if (!turnstile || typeof turnstile.render !== 'function') {
             throw new Error('turnstile unavailable');
           }
 
-          if (wrapper) {
-            wrapper.style.display = 'flex';
-          }
+          showWidgetContainer();
 
           turnstile.render(container, {
             sitekey: siteKey,
             theme: 'dark'
           });
-        } catch (err) {
-          console.error('Failed to initialize Turnstile widget', err);
-          if (errorMessage) {
-            errorMessage.style.display = 'block';
-          }
+        } catch (error) {
+          console.error('Failed to initialize Turnstile widget', error);
+          showErrorMessage();
         }
       }
 
@@ -211,15 +166,16 @@ const sanitizedBuildTimeKey =
       } else {
         initTurnstile();
       }
-    })();
 
-    if (typeof window !== 'undefined' && window.location.hash === '#contact-success') {
-      const success = document.getElementById('contact-success');
-      if (success) {
-        success.style.display = 'block';
+      if (typeof window !== 'undefined' && window.location.hash === '#contact-success') {
+        const success = document.getElementById('contact-success');
+        if (success) {
+          success.style.display = 'block';
+        }
       }
-    }
+    })();
   </script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" data-turnstile="true" async defer></script>
 
   <section style="margin-top: clamp(48px, 8vw, 96px);">
     <h2 class="section-title">Availability</h2>
