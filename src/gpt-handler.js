@@ -1,7 +1,7 @@
 const BASE_CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-GPT-Proxy-Token, CF-Access-Jwt-Assertion",
+    "Content-Type, Authorization, X-GPT-Proxy-Token, X-API-Key, CF-Access-Jwt-Assertion",
 };
 
 const encoder = new TextEncoder();
@@ -106,10 +106,48 @@ function validateOrigin(request, env) {
   return { origin: origin && allowedOrigins.includes(origin) ? origin : null };
 }
 
-function authorizeRequest(request, env, origin) {
-  const expectedToken = env.GPT_SERVICE_TOKEN;
+function readClientToken(request) {
+  const authHeader = request.headers.get("Authorization");
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.slice("Bearer ".length).trim();
+    if (token !== "") {
+      return token;
+    }
+  }
 
-  if (typeof expectedToken !== "string" || expectedToken.trim() === "") {
+  const proxyToken = request.headers.get("X-GPT-Proxy-Token");
+  if (typeof proxyToken === "string" && proxyToken.trim() !== "") {
+    return proxyToken.trim();
+  }
+
+  const apiKey = request.headers.get("X-API-Key");
+  if (typeof apiKey === "string" && apiKey.trim() !== "") {
+    return apiKey.trim();
+  }
+
+  return "";
+}
+
+function resolveExpectedToken(env) {
+  const candidates = [
+    env.GPT_SERVICE_TOKEN,
+    env.GPT_PROXY_TOKEN,
+    env.GPT_PROXY_SECRET,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim() !== "") {
+      return candidate.trim();
+    }
+  }
+
+  return null;
+}
+
+function authorizeRequest(request, env, origin) {
+  const expectedToken = resolveExpectedToken(env);
+
+  if (!expectedToken) {
     return jsonResponse(
       { error: "Server misconfigured: missing GPT service token." },
       { status: 500 },
@@ -117,12 +155,9 @@ function authorizeRequest(request, env, origin) {
     );
   }
 
-  const authHeader = request.headers.get("Authorization") || "";
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length).trim()
-    : "";
+  const providedToken = readClientToken(request);
 
-  if (!timingSafeEqual(token, expectedToken)) {
+  if (!timingSafeEqual(providedToken, expectedToken)) {
     return jsonResponse({ error: "Unauthorized." }, { status: 401 }, origin);
   }
 
