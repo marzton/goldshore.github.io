@@ -37,6 +37,8 @@ export async function getWorkerBindings(script: string) {
 
 type WorkerRoute = { pattern: string };
 
+type WorkerSubdomain = { subdomain?: string | null };
+
 function pickPrimaryRoute(routes: WorkerRoute[]): WorkerRoute {
   if (routes.length === 1) return routes[0];
   const scored = routes
@@ -66,17 +68,48 @@ function buildRouteURL(pattern: string, routePath: string): string {
   return new URL(sanitizedPath, base).toString();
 }
 
+function buildWorkersSubdomainURL(subdomain: string, script: string, routePath: string): string {
+  let base: string;
+  if (subdomain.includes("://")) {
+    base = subdomain;
+  } else if (subdomain.includes(".")) {
+    base = `https://${subdomain}`;
+  } else {
+    base = `https://${subdomain}.workers.dev`;
+  }
+  const trimmedScript = script.replace(/^\/+|\/+$/g, "");
+  const sanitizedPath = routePath.startsWith("/") ? routePath : `/${routePath}`;
+  const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
+  return `${normalizedBase}/${trimmedScript}${sanitizedPath}`;
+}
+
+type FetchWorkerRouteOptions = {
+  init?: RequestInitWithHeaders;
+  domainOverride?: string;
+};
+
 export async function fetchWorkerRoute(
   script: string,
   routePath: string,
-  init?: RequestInitWithHeaders
+  options?: FetchWorkerRouteOptions
 ): Promise<{ url: string; response: Response }> {
+  const { init, domainOverride } = options ?? {};
   const routes = await cfFetch<WorkerRoute[]>(`/accounts/${acc}/workers/scripts/${script}/routes`);
-  if (!routes.length) {
-    throw new Error(`No routes configured for Worker ${script}`);
+  let url: string;
+  if (domainOverride) {
+    url = buildRouteURL(domainOverride, routePath);
+  } else if (routes.length) {
+    const route = pickPrimaryRoute(routes);
+    url = buildRouteURL(route.pattern, routePath);
+  } else {
+    const { subdomain } = await cfFetch<WorkerSubdomain>(`/accounts/${acc}/workers/subdomain`);
+    if (!subdomain) {
+      throw new Error(
+        `No routes configured for Worker ${script} and account is missing a workers.dev subdomain`
+      );
+    }
+    url = buildWorkersSubdomainURL(subdomain, script, routePath);
   }
-  const route = pickPrimaryRoute(routes);
-  const url = buildRouteURL(route.pattern, routePath);
   const { headers: initHeaders, ...rest } = init ?? {};
   const headers: Record<string, string> = {
     "user-agent": "goldshore-agent/worker-health-check",
