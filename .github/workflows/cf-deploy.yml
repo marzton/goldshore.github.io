@@ -1,0 +1,46 @@
+name: cf-deploy
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+concurrency:
+  group: cf-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment:
+      name: production
+      url: https://goldshore.org/
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        id: diff
+        run: |
+          git fetch origin main
+          echo "changed=$(git diff --name-only origin/main... | tr '\n' ',' )" >> $GITHUB_OUTPUT
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-package-lock
+
+      - name: Build admin (conditional)
+        if: contains(steps.diff.outputs.changed, 'apps/admin/')
+        run: npm run build --workspace=@goldshore/admin || true
+
+      - name: Build web (conditional)
+        if: contains(steps.diff.outputs.changed, 'apps/web/')
+        run: npm run build --workspace=@goldshore/web || true
+
+      - name: Orchestrate Cloudflare (stub — replace with your infra/cf/deploy.ts if present)
+        run: echo "Add infra/cf/deploy.ts to perform API-driven deploys or rely on CF Pages/Workers native triggers."
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}

@@ -1,0 +1,37 @@
+{
+  "project": "goldshore-web",
+  "description": "Primary marketing site served via Cloudflare Pages with Worker routing in front.",
+  "production_branch": "main",
+  "preview_branches": [
+    "preview",
+    "develop"
+  ],
+  "deployment_configs": {
+    "production": {
+      "compatibility_date": "2024-02-19",
+      "environment_variables": {
+        "NODE_VERSION": "20",
+        "ASSET_BASE_URL": "https://goldshore.org",
+        "WORKER_HOSTNAME": "goldshore.org"
+      },
+      "analytics": {
+        "provider": "cloudflare",
+        "enable_reporting": true
+      }
+    },
+    "preview": {
+      "compatibility_date": "2024-02-19",
+      "environment_variables": {
+        "ASSET_BASE_URL": "https://preview.goldshore.org",
+        "WORKER_HOSTNAME": "preview.goldshore.org"
+      },
+      "preview_ttl_hours": 168
+    }
+  },
+  "build_config": {
+    "build_command": "npm run build:web",
+    "destination_dir": "apps/web/dist",
+    "web_analytics_tag": "goldshore-web",
+    "web_analytics_token": "${CF_WEB_ANALYTICS_TOKEN}"
+  }
+}

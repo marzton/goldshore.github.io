@@ -1,0 +1,45 @@
+{
+  "project": "goldshore-admin",
+  "description": "Cloudflare Pages project hosting the admin console gated behind Access.",
+  "production_branch": "main",
+  "preview_branches": [
+    "admin-preview"
+  ],
+  "deployment_configs": {
+    "production": {
+      "compatibility_date": "2024-02-19",
+      "environment_variables": {
+        "NODE_VERSION": "20",
+        "ACCESS_TAG": "goldshore-admin",
+        "WORKER_HOSTNAME": "admin.goldshore.org"
+      },
+      "access_policies": [
+        {
+          "name": "Goldshore Admin Access",
+          "precedence": 1,
+          "decision": "allow",
+          "include": [
+            {
+              "email_domain": "goldshore.org"
+            }
+          ],
+          "require": [
+            {
+              "email_domain": "goldshore.org"
+            }
+          ]
+        }
+      ]
+    },
+    "preview": {
+      "compatibility_date": "2024-02-19",
+      "environment_variables": {
+        "WORKER_HOSTNAME": "admin-preview.goldshore.org"
+      }
+    }
+  },
+  "build_config": {
+    "build_command": "npm run build:admin",
+    "destination_dir": "apps/admin/dist"
+  }
+}

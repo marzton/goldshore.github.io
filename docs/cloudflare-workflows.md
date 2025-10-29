@@ -42,7 +42,7 @@ This design keeps infrastructure tasks in Cloudflare while GitHub Actions focuse
 
 4. **Test and deploy**
    - Run the workflow manually from the dashboard to validate each step.
-   - Update `deploy.yml` to `curl` the HTTP trigger as the final job step. Example shell snippet:
+   - Update `.github/workflows/cf-deploy.yml` to `curl` the HTTP trigger as the final job step. Example shell snippet:
      ```bash
      curl -X POST "${CF_WORKFLOW_URL}" \
        -H "Authorization: Bearer ${CF_WORKFLOW_TOKEN}" \

@@ -1,0 +1,135 @@
+name: Apply policies
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/cron/**'
+      - 'infra/cf/**'
+      - 'infra/policies/**'
+      - '.github/workflows/apply-policies.yml'
+
+jobs:
+  validate:
+    name: Validate policy definitions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Validate JSON syntax
+        run: |
+          set -euo pipefail
+          jq empty infra/cron/config.json
+          jq empty infra/cf/config.json
+          jq empty infra/policies/github/branch_protection.main.json
+          jq empty infra/policies/github/ruleset.protected-branches.json
+          jq empty infra/policies/github/environment.production.json
+          jq empty infra/policies/cloudflare/pages.goldshore-web.json
+          jq empty infra/policies/cloudflare/pages.goldshore-admin.json
+          jq empty infra/policies/cloudflare/workers.goldshore-api.json
+          jq empty infra/policies/cloudflare/dns.requirements.json
+          jq empty infra/policies/email/dmarc_spf.json
+
+  github:
+    name: Apply GitHub policies
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+      security-events: none
+    env:
+      GH_TOKEN: ${{ secrets.POLICY_APPLY_TOKEN }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Apply protections
+        run: |
+          set -euo pipefail
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "::warning::POLICY_APPLY_TOKEN is not configured; skipping GitHub policy application."
+            exit 0
+          fi
+
+          gh --version
+
+          echo "Updating branch protection for main"
+          gh api \
+            --method PUT \
+            "repos/${GITHUB_REPOSITORY}/branches/main/protection" \
+            --input infra/policies/github/branch_protection.main.json
+
+          echo "Upserting protected branch ruleset"
+          RULESET_ID=$(gh api "repos/${GITHUB_REPOSITORY}/rulesets" --jq '.[] | select(.name=="Protected branches") | .id' || true)
+          if [[ -n "${RULESET_ID}" ]]; then
+            gh api \
+              --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/rulesets/${RULESET_ID}" \
+              --input infra/policies/github/ruleset.protected-branches.json
+          else
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/rulesets" \
+              --input infra/policies/github/ruleset.protected-branches.json
+          fi
+
+          echo "Configuring production deployment environment"
+          gh api \
+            --method PUT \
+            "repos/${GITHUB_REPOSITORY}/environments/production" \
+            --input infra/policies/github/environment.production.json
+
+  cloudflare:
+    name: Apply Cloudflare desired state
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Apply Pages and Worker configuration
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CF_API_TOKEN:-}" || -z "${CF_ACCOUNT_ID:-}" ]]; then
+            echo "::warning::Cloudflare credentials not configured; skipping apply."
+            exit 0
+          fi
+
+          API="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
+          AUTH=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+
+          for file in infra/policies/cloudflare/pages.*.json; do
+            project=$(jq -r '.project' "${file}")
+            payload=$(jq -c 'del(.project)' "${file}")
+            echo "Syncing Pages project ${project}"
+            curl -sS -X PATCH "${API}/pages/projects/${project}" "${AUTH[@]}" --data "${payload}" >/dev/null
+          done
+
+          WORKER_FILE="infra/policies/cloudflare/workers.goldshore-api.json"
+          if [[ -f "${WORKER_FILE}" ]]; then
+            script=$(jq -r '.script' "${WORKER_FILE}")
+            payload=$(jq -c 'del(.script)' "${WORKER_FILE}")
+            echo "Syncing Worker ${script}"
+            curl -sS -X PUT "${API}/workers/services/${script}/environments/production" "${AUTH[@]}" --data "${payload}" >/dev/null
+          fi
+
+          echo "DNS policy is declarative only; reference infra/scripts/enforce-dns.sh for enforcement."
+
+  notify:
+    name: Summary
+    needs:
+      - github
+      - cloudflare
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - run: |
+          if [[ "${{ needs.github.result }}" == "success" && "${{ needs.cloudflare.result }}" == "success" ]]; then
+            echo "All policy jobs completed"
+          else
+            echo "One or more policy jobs were skipped or failed" >&2
