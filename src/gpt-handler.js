@@ -142,7 +142,6 @@ function validateOrigin(request, env) {
         "Origin is not allowed.",
         403,
         undefined,
-        requestOrigin,
       ),
     };
   }
