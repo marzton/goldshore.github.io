@@ -3,6 +3,7 @@ set -euo pipefail
 
 if [[ -z "${CF_API_TOKEN:-}" ]]; then
   echo "CF_API_TOKEN environment variable must be set" >&2
+  echo "CF_API_TOKEN is required" >&2
   exit 1
 fi
 
@@ -18,9 +19,11 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
 fi
 
 API="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/access"
-AUTH_HEADER=("-H" "Authorization: Bearer $CF_API_TOKEN" "-H" "Content-Type: application/json")
 
-existing_apps=$(curl -sS -X GET "$API/apps" "${AUTH_HEADER[@]}")
+existing_apps=$(curl -s -X GET "$API/apps" \
+  -H "Authorization: Bearer $CF_API_TOKEN" \
+  -H "Content-Type: application/json")
+
 if [[ $(echo "$existing_apps" | jq -r '.success') != "true" ]]; then
   echo "Unable to fetch existing Access applications" >&2
   echo "$existing_apps" >&2
@@ -35,23 +38,23 @@ jq -c '.applications[]' "$CONFIG_FILE" | while read -r app; do
   type=$(echo "$app" | jq -r '.type')
   session_duration=$(echo "$app" | jq -r '.session_duration')
 
-  app_payload=$(jq -n \
-    --arg name "$name" \
-    --arg domain "$domain" \
-    --arg type "$type" \
-    --arg session_duration "$session_duration" \
-    '{name:$name, domain:$domain, type:$type, session_duration:$session_duration}'
-  )
+  app_payload=$(jq -n --arg name "$name" --arg domain "$domain" --arg type "$type" --arg session_duration "$session_duration" '{name:$name, domain:$domain, type:$type, session_duration:$session_duration}')
 
   app_id=$(echo "$existing_apps" | jq -r --arg name "$name" '.result[] | select(.name == $name) | .id' | head -n 1)
 
   if [[ -z "$app_id" ]]; then
     echo "Creating Access application: $name"
-    response=$(curl -sS -X POST "$API/apps" "${AUTH_HEADER[@]}" --data "$app_payload")
+    response=$(curl -s -X POST "$API/apps" \
+      -H "Authorization: Bearer $CF_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data "$app_payload")
     app_id=$(echo "$response" | jq -r '.result.id')
   else
     echo "Updating Access application: $name"
-    curl -sS -X PUT "$API/apps/$app_id" "${AUTH_HEADER[@]}" --data "$app_payload" >/dev/null
+    curl -s -X PUT "$API/apps/$app_id" \
+      -H "Authorization: Bearer $CF_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data "$app_payload" > /dev/null
   fi
 
   if [[ -z "$app_id" || "$app_id" == "null" ]]; then
@@ -64,7 +67,9 @@ jq -c '.applications[]' "$CONFIG_FILE" | while read -r app; do
     continue
   fi
 
-  existing_policies=$(curl -sS -X GET "$API/apps/$app_id/policies" "${AUTH_HEADER[@]}")
+  existing_policies=$(curl -s -X GET "$API/apps/$app_id/policies" \
+    -H "Authorization: Bearer $CF_API_TOKEN" \
+    -H "Content-Type: application/json")
 
   echo "$policies" | while read -r policy; do
     policy_name=$(echo "$policy" | jq -r '.name')
@@ -74,10 +79,16 @@ jq -c '.applications[]' "$CONFIG_FILE" | while read -r app; do
 
     if [[ -z "$policy_id" ]]; then
       echo "  Creating policy: $policy_name"
-      curl -sS -X POST "$API/apps/$app_id/policies" "${AUTH_HEADER[@]}" --data "$policy_payload" >/dev/null
+      curl -s -X POST "$API/apps/$app_id/policies" \
+        -H "Authorization: Bearer $CF_API_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data "$policy_payload" > /dev/null
     else
       echo "  Updating policy: $policy_name"
-      curl -sS -X PUT "$API/apps/$app_id/policies/$policy_id" "${AUTH_HEADER[@]}" --data "$policy_payload" >/dev/null
+      curl -s -X PUT "$API/apps/$app_id/policies/$policy_id" \
+        -H "Authorization: Bearer $CF_API_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data "$policy_payload" > /dev/null
     fi
   done
 
