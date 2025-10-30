@@ -109,8 +109,21 @@ export async function createFixBranchAndPR(
     body: JSON.stringify({ sha: commit.sha, force: true })
   });
 
-  return await ghJson(`/repos/${owner}/${repo}/pulls`, {
+  const prRes = await ghRequest(`/repos/${owner}/${repo}/pulls`, {
     method: "POST",
     body: JSON.stringify({ head, base, title, body })
   });
+
+  if (prRes.ok) {
+    return (await prRes.json()) as PullRequest;
+  }
+
+  if (prRes.status === 422) {
+    const params = new URLSearchParams({ state: "open", head: `${owner}:${head}` });
+    const existing = await ghJson<PullRequest[]>(`/repos/${owner}/${repo}/pulls?${params.toString()}`);
+    if (existing.length > 0) return existing[0];
+  }
+
+  const text = await prRes.text();
+  throw new Error(`Failed to create pull request ${head}->${base}: ${prRes.status} ${text}`);
 }
