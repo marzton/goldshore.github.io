@@ -14,13 +14,25 @@ const mapHostToAssets = (host: string, env: Env): string =>
       ? env.DEV_ASSETS ?? 'https://goldshore-org-dev.pages.dev'
       : env.PRODUCTION_ASSETS ?? 'https://goldshore-org.pages.dev';
 
-const buildCorsHeaders = (origin: string): Headers => {
+const buildCorsHeaders = (origin: string | null): Headers => {
   const headers = new Headers();
-  headers.set('access-control-allow-origin', origin);
+  if (origin) {
+    headers.set('access-control-allow-origin', origin);
+  }
   headers.set('access-control-allow-methods', 'GET,HEAD,POST,OPTIONS');
   headers.set('access-control-allow-headers', 'accept,content-type');
   headers.set('access-control-max-age', '86400');
+  headers.set('vary', 'origin');
   return headers;
+};
+
+const resolveCorsOrigin = (req: Request, url: URL): string | null => {
+  const headerOrigin = req.headers.get('origin');
+  if (headerOrigin && headerOrigin !== 'null') {
+    return headerOrigin;
+  }
+
+  return `${url.protocol}//${url.host}`;
 };
 
 export default {
