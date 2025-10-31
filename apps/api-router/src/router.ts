@@ -39,10 +39,10 @@ export default {
   async fetch(req, env): Promise<Response> {
     const url = new URL(req.url);
 
-    const corsOrigin = resolveCorsOrigin(req, url);
+    const requestOrigin = req.headers.get('origin');
 
     if (req.method === 'OPTIONS') {
-      const cors = buildCorsHeaders(corsOrigin);
+      const cors = buildCorsHeaders(requestOrigin ?? `${url.protocol}//${url.host}`);
       cors.set('content-length', '0');
       return new Response(null, { status: 204, headers: cors });
     }
@@ -66,7 +66,7 @@ export default {
 
     const responseHeaders = new Headers(proxiedResponse.headers);
     responseHeaders.set('x-served-by', env.APP_NAME);
-    const cors = buildCorsHeaders(corsOrigin);
+    const cors = buildCorsHeaders(requestOrigin ?? `${url.protocol}//${url.host}`);
     cors.forEach((value, key) => responseHeaders.set(key, value));
 
     return new Response(proxiedResponse.body, {
