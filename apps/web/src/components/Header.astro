@@ -117,7 +117,6 @@ const navLinks = [
   }
 }
 </style>
-const headerScript = await import("../scripts/headerMenu.ts?url");
 ---
 
 <header class="container header" role="banner">
@@ -162,6 +161,15 @@ const headerScript = await import("../scripts/headerMenu.ts?url");
   const mobileMenu = document.querySelector('[data-mobile-menu]');
 
   if (toggleButton && mobileMenu) {
+    if (mobileMenu.dataset.controllerAttached === 'true') {
+      mobileMenu.classList.remove('is-open');
+      mobileMenu.hidden = true;
+      toggleButton.setAttribute('aria-expanded', 'false');
+      toggleButton.setAttribute('aria-label', 'Open navigation menu');
+      return;
+    }
+
+    mobileMenu.dataset.controllerAttached = 'true';
     let isOpen = false;
 
     const getFocusableItems = () =>
@@ -265,6 +273,3 @@ const headerScript = await import("../scripts/headerMenu.ts?url");
     mobileMenu.hidden = true;
   }
 </script>
-<script type="module" src={headerScript.default}></script>
-
-<script type="module" src={Astro.resolve("./header-menu.ts")}></script>
