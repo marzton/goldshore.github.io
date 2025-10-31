@@ -8,28 +8,77 @@ fi
 
 ZONE_NAME=${ZONE_NAME:-goldshore.org}
 API="https://api.cloudflare.com/client/v4"
-AUTH_HEADER=("-H" "Authorization: Bearer ${CF_API_TOKEN}" "-H" "Content-Type: application/json")
 
-get_zone_id() {
-  if [[ -n "${CF_ZONE_ID:-}" ]]; then
-    echo "${CF_ZONE_ID}"
-    return
-  fi
-
-  curl -sS -X GET "${API}/zones?name=${ZONE_NAME}" "${AUTH_HEADER[@]}" | jq -r '.result[0].id // ""'
+cf_api() {
+  curl --fail-with-body -sS "$@"
 }
 
-upsert_record() {
+# Resolve the zone identifier when not provided explicitly.
+if [[ -z "${CF_ZONE_ID:-}" ]]; then
+  CF_ZONE_ID=$(curl -sS --fail-with-body -X GET "$API/zones?name=$ZONE_NAME" \
+    -H "Authorization: Bearer $CF_API_TOKEN" \
+    -H "Content-Type: application/json" | jq -r '.result[0].id // empty')
+fi
+
+if [[ -z "${CF_ZONE_ID:-}" ]]; then
+  echo "Unable to resolve zone id for $ZONE_NAME" >&2
+  exit 1
+fi
+
+remove_conflicting_records() {
   local zone_id=$1
   local name=$2
-  local type=$3
-  local content=$4
-  local proxied_flag=$5
+  local desired_type=$3
 
-  local existing
-  existing=$(curl -sS -X GET "${API}/zones/${zone_id}/dns_records?type=${type}&name=${name}" "${AUTH_HEADER[@]}")
-  local record_id
-  record_id=$(echo "$existing" | jq -r '.result[0].id // ""')
+  local conflict_types=()
+  case "$desired_type" in
+    CNAME)
+      conflict_types=("A" "AAAA")
+      ;;
+    A|AAAA)
+      conflict_types=("CNAME")
+      ;;
+    *)
+      return
+      ;;
+  esac
+
+  local conflicts_json
+  conflicts_json=$(curl -sS --fail-with-body -X GET "$API/zones/$zone_id/dns_records?name=$name" \
+    -H "Authorization: Bearer $CF_API_TOKEN" \
+    -H "Content-Type: application/json")
+
+  for conflict_type in "${conflict_types[@]}"; do
+    local conflict_ids
+    conflict_ids=$(echo "$conflicts_json" | jq -r --arg type "$conflict_type" '(.result // [])[]? | select(.type == $type) | .id')
+
+    while IFS= read -r id; do
+      [[ -z "$id" || "$id" == "null" ]] && continue
+      curl -sS --fail-with-body -X DELETE "$API/zones/$zone_id/dns_records/$id" \
+        -H "Authorization: Bearer $CF_API_TOKEN" \
+        -H "Content-Type: application/json" >/dev/null
+      echo "Removed conflicting $conflict_type record for $name"
+    done <<<"$conflict_ids"
+  done
+}
+
+    if [[ -n "$ipv6_target" ]]; then
+      records+=("$ZONE_NAME|AAAA|$ipv6_target|$default_proxied")
+    fi
+  fi
+
+  if [[ -n "$www_cname_target" ]]; then
+    records+=("www.$ZONE_NAME|CNAME|$www_cname_target|$default_proxied")
+  fi
+
+  if [[ -n "$preview_cname_target" ]]; then
+    records+=("preview.$ZONE_NAME|CNAME|$preview_cname_target|$default_proxied")
+  remove_conflicting_records "$zone_id" "$name" "$type"
+
+  local existing_id
+  existing_id=$(curl -sS --fail-with-body -X GET "$API/zones/$zone_id/dns_records?type=$type&name=$name" \
+    -H "Authorization: Bearer $CF_API_TOKEN" \
+    -H "Content-Type: application/json" | jq -r '.result[0].id // ""')
 
   local payload
   payload=$(jq -n \
@@ -38,33 +87,84 @@ upsert_record() {
     --arg content "$content" \
     --argjson proxied "$proxied_flag" '{type:$type,name:$name,content:$content,ttl:1,proxied:$proxied}')
 
-  if [[ -n "$record_id" ]]; then
-    curl -sS -X PUT "${API}/zones/${zone_id}/dns_records/${record_id}" "${AUTH_HEADER[@]}" --data "$payload" >/dev/null
-    echo "Updated ${type} record for ${name}" >&2
+  if [[ -n "$existing_id" ]]; then
+    curl -sS --fail-with-body -X PUT "$API/zones/$zone_id/dns_records/$existing_id" \
+      -H "Authorization: Bearer $CF_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data "$payload" >/dev/null
+    echo "Updated $type record for $name"
   else
-    curl -sS -X POST "${API}/zones/${zone_id}/dns_records" "${AUTH_HEADER[@]}" --data "$payload" >/dev/null
-    echo "Created ${type} record for ${name}" >&2
+    curl -sS --fail-with-body -X POST "$API/zones/$zone_id/dns_records" \
+      -H "Authorization: Bearer $CF_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data "$payload" >/dev/null
+    echo "Created $type record for $name"
   fi
-}
 
+  if [[ -n "$dev_cname_target" ]]; then
+    records+=("dev.$ZONE_NAME|CNAME|$dev_cname_target|$default_proxied")
+  fi
+
+  declare -A host_record_types=()
+  local record
+  for record in "${records[@]}"; do
+    IFS='|' read -r name type content proxied <<<"$record"
+
+    if [[ -z "$name" || -z "$type" || -z "$content" ]]; then
+      echo "Skipping malformed record definition: $record" >&2
+      continue
+    fi
+
+    case "$type" in
+      CNAME)
+        if [[ "${host_record_types[$name]:-}" == "address" ]]; then
+          echo "Configuration error: $name cannot have both address and CNAME records" >&2
+          exit 1
+        fi
+        host_record_types[$name]="cname"
+        ;;
+      A|AAAA)
+        if [[ "${host_record_types[$name]:-}" == "cname" ]]; then
+          echo "Configuration error: $name cannot have both address and CNAME records" >&2
+          exit 1
+        fi
+        host_record_types[$name]="address"
+        ;;
+    esac
+
+    upsert_record "$zone_id" "$name" "$type" "$content" "${proxied:-$default_proxied}"
+  done
+
+done
+
+echo "DNS synchronisation complete."
 main() {
-  local zone_id
-  zone_id=$(get_zone_id)
-  if [[ -z "$zone_id" ]]; then
-    echo "Unable to resolve zone id for ${ZONE_NAME}" >&2
-    exit 1
+  local zone_id=$1
+
+  local ipv4_target=${IPv4_TARGET:-192.0.2.1}
+  local ipv6_target=${IPv6_TARGET:-}
+
+  local -a records=(
+    "$ZONE_NAME|A|$ipv4_target|true"
+  )
+
+  if [[ -n "$ipv6_target" ]]; then
+    records+=("$ZONE_NAME|AAAA|$ipv6_target|true")
   fi
 
-  local hosts=("${ZONE_NAME}" "www.${ZONE_NAME}" "preview.${ZONE_NAME}" "dev.${ZONE_NAME}")
-  local ipv4_target="192.0.2.1"
-  local ipv6_target="100::"
+  records+=(
+    "www.$ZONE_NAME|CNAME|$ZONE_NAME|true"
+    "preview.$ZONE_NAME|CNAME|$ZONE_NAME|true"
+    "dev.$ZONE_NAME|CNAME|$ZONE_NAME|true"
+  )
 
-  for host in "${hosts[@]}"; do
-    upsert_record "$zone_id" "$host" "A" "$ipv4_target" true
-    upsert_record "$zone_id" "$host" "AAAA" "$ipv6_target" true
+  local record
+  for record in "${records[@]}"; do
+    IFS='|' read -r name type content proxied <<<"$record"
+    upsert_record "$zone_id" "$name" "$type" "$content" "$proxied"
   done
 
   echo "DNS synchronized for ${ZONE_NAME}."
 }
 
-main "$@"
+main "$CF_ZONE_ID"

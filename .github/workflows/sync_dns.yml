@@ -1,4 +1,4 @@
-name: Sync goldshore DNS
+name: Sync DNS records
 
 on:
   workflow_dispatch:
