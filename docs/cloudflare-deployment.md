@@ -29,6 +29,14 @@ wrangler deploy --env production
 - `ALLOWED_HOSTNAMES` is a comma-separated allow list enforced in production so only `goldshore.org` routes can consume Worker invocations.
 - `CANONICAL_HOSTNAME` controls the redirect target when requests arrive on an unexpected host; set it to `goldshore.org` to collapse stray traffic back to the primary domain.
 
+### Required Worker secrets
+
+Store the following secrets with `wrangler secret put` before deploying:
+
+- `GITHUB_WEBHOOK_SECRET` – verifies GitHub webhook signatures.
+- `GITHUB_APP_PRIVATE_KEY` – authenticates the GitHub App installation.
+- `OPENAI_API_KEY` – allows the Worker to invoke OpenAI's Responses API.
+
 ## 3. Split deployments
 
 1. Point `goldshore.org` and `www.goldshore.org` DNS records at Cloudflare (orange cloud = proxy).
