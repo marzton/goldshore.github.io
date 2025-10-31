@@ -189,6 +189,7 @@ const navLinks = [
       mobileMenu.hidden = false;
       mobileMenu.setAttribute('aria-hidden', 'false');
       mobileMenu.classList.add('is-open');
+      mobileMenu.setAttribute('aria-hidden', 'false');
       const [firstFocusable] = getFocusableItems();
       if (firstFocusable) {
         firstFocusable.focus();
