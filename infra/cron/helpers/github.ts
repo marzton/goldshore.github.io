@@ -4,6 +4,14 @@ const GH_API = "https://api.github.com";
 const token = process.env.GH_TOKEN;
 let gh: Octokit | null = null;
 
+function getOctokit(): Octokit {
+  if (!token) throw new Error("Missing GH_TOKEN environment variable");
+  if (!gh) {
+    gh = new Octokit({ auth: token });
+  }
+  return gh;
+}
+
 function baseHeaders(): Record<string, string> {
   if (!token) throw new Error("Missing GH_TOKEN environment variable");
   return {
@@ -55,16 +63,8 @@ export async function openOpsIssue(owner: string, repo: string, title: string, b
 }
 
 export async function commentOnPR(owner: string, repo: string, prNumber: number, body: string) {
-  await ghJson(`/repos/${owner}/${repo}/issues/${prNumber}/comments`, {
-    method: "POST",
-    body: JSON.stringify({ body })
-  });
-  const { data } = await gh.rest.issues.create({ owner, repo, title, body, labels });
-  return data;
-}
-
-export async function commentOnPR(owner: string, repo: string, prNumber: number, body: string) {
-  await gh.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+  const client = getOctokit();
+  await client.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
 }
 
 export async function createFixBranchAndPR(
@@ -76,8 +76,7 @@ export async function createFixBranchAndPR(
   body: string,
   changes: Array<{ path: string; content: string }>
 ) {
-  if (!token) throw new Error("Missing GH_TOKEN environment variable");
-  const client = gh ?? (gh = new Octokit({ auth: token }));
+  const client = getOctokit();
 
   const baseRef = await client.rest.git.getRef({ owner, repo, ref: `heads/${base}` });
   const baseSha = baseRef.data.object.sha;

@@ -26,6 +26,7 @@ jobs:
           jq empty infra/policies/github/branch_protection.main.json
           jq empty infra/policies/github/ruleset.protected-branches.json
           jq empty infra/policies/github/environment.production.json
+          jq empty infra/policies/github/repository.settings.json
           jq empty infra/policies/cloudflare/pages.goldshore-web.json
           jq empty infra/policies/cloudflare/pages.goldshore-admin.json
           jq empty infra/policies/cloudflare/workers.goldshore-api.json
@@ -81,6 +82,12 @@ jobs:
             --method PUT \
             "repos/${GITHUB_REPOSITORY}/environments/production" \
             --input infra/policies/github/environment.production.json
+
+          echo "Ensuring repository settings"
+          gh api \
+            --method PATCH \
+            "repos/${GITHUB_REPOSITORY}" \
+            --input infra/policies/github/repository.settings.json
 
   cloudflare:
     name: Apply Cloudflare desired state
