@@ -102,7 +102,38 @@ export default {
     const outgoing = new Headers(response.headers);
     outgoing.set('x-served-by', env.APP_NAME);
     outgoing.set('cache-control', cachePolicy(url.pathname));
-    cors.forEach((value, key) => outgoing.set(key, value));
+    cors.forEach((value, key) => {
+      if (key.toLowerCase() === 'vary') {
+        const existing = outgoing.get('vary');
+        const existingValues = existing
+          ? existing
+              .split(',')
+              .map((entry) => entry.trim())
+              .filter(Boolean)
+          : [];
+        const existingSet = new Set(existingValues.map((entry) => entry.toLowerCase()));
+
+        value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter(Boolean)
+          .forEach((entry) => {
+            const lower = entry.toLowerCase();
+            if (!existingSet.has(lower)) {
+              existingValues.push(entry);
+              existingSet.add(lower);
+            }
+          });
+
+        if (existingValues.length > 0) {
+          outgoing.set('vary', existingValues.join(', '));
+        }
+
+        return;
+      }
+
+      outgoing.set(key, value);
+    });
 
     return new Response(response.body, {
       status: response.status,
