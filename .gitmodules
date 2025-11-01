@@ -1,13 +1,2 @@
-[submodule "backend"]
-  path = backend
-  url = https://github.com/marzton/goldshore.com-backend.git
-
-[submodule "frontend"]
-  path = frontend
-  url = https://github.com/marzton/goldshore-frontend.git
-  branch = main
-
-[submodule "assets"]
-  path = assets
-  url = https://github.com/marzton/goldshore-assets.git
-  branch = main
+# Submodules were retired after assets/backend/frontend were promoted into the main repo.
+# This placeholder prevents git from expecting stale submodule checkout metadata.
