@@ -1,78 +1,22 @@
-# Cloudflare Pages configuration. Worker deployments should use wrangler.worker.toml.
-pages_build_output_dir = "./apps/web/dist"
-pages_build_command = "npm run build:web"
+name = "goldshore-api"
+main = "src/index.ts"
+compatibility_date = "2024-06-20"
+workers_dev = true
 
-name = "goldshore"
-main = "apps/api-router/src/router.ts"
-compatibility_date = "2025-10-05"
-workers_dev = false
+[assets]
+directory = "public"
+binding = "ASSETS"
 
-[[analytics_engine_datasets]]
-binding = "GOLDSHORE_ENV"
-dataset = "goldshore_analytics"
+routes = [
+  { pattern = "api.goldshore.org/*", zone_name = "goldshore.org" }
+]
 
 [vars]
-APP_NAME = "GoldShore"
-PRODUCTION_ASSETS = "https://goldshore-org.pages.dev"
-PREVIEW_ASSETS = "https://goldshore-org-preview.pages.dev"
-DEV_ASSETS = "https://goldshore-org-dev.pages.dev"
-ADMIN_ASSETS = "https://goldshore-admin.pages.dev"
-PREVIEW_ADMIN_ASSETS = "https://goldshore-admin-preview.pages.dev"
-DEV_ADMIN_ASSETS = "https://goldshore-admin-dev.pages.dev"
-GPT_ALLOWED_ORIGINS = "https://goldshore.org, https://www.goldshore.org, https://preview.goldshore.org, https://dev.goldshore.org, https://trade.goldshore.org"
+AGENT_SYSTEM_PROMPT = ""
+CORS_ORIGINS = "https://goldshore.org,https://web.goldshore.org"
+ACCESS_ISSUER = "https://goldshore.cloudflareaccess.com/cdn-cgi/access/sso/oidc/07665be501c60fa585bd8c697d77ebf86ce14f993fa7745ab52f54ad93f523fc"
+ACCESS_JWKS_URL = "https://goldshore.cloudflareaccess.com/cdn-cgi/access/sso/oidc/07665be501c60fa585bd8c697d77ebf86ce14f993fa7745ab52f54ad93f523fc/jwks"
 
-# Secrets such as FORMSPREE_ENDPOINT, TURNSTILE_SECRET, OPENAI_API_KEY, and
-# GPT_SHARED_SECRET (or legacy GPT_PROXY_SECRET) are provided via
-# `wrangler secret put …` or `.dev.vars` in local development.
-
-[env.production]
-name = "goldshore-production"
-routes = [
-  { pattern = "goldshore.org/*", zone_name = "goldshore.org" },
-  { pattern = "www.goldshore.org/*", zone_name = "goldshore.org" }
-]
-
-[env.production.vars]
-ASSETS_ORIGIN = "https://goldshore.org"
-CF_ACCESS_AUD = "3d5916af31a595ca00d8b1ab0157361a953779d939d9df2f63b1802b87a0248e"
-CF_ACCESS_ISS = "https://rmarston.cloudflareaccess.com"
-CF_ACCESS_JWKS_URL = "https://rmarston.cloudflareaccess.com/cdn-cgi/access/certs"
-ADMIN_ASSETS = "https://goldshore-admin.pages.dev"
-PREVIEW_ADMIN_ASSETS = "https://goldshore-admin-preview.pages.dev"
-DEV_ADMIN_ASSETS = "https://goldshore-admin-dev.pages.dev"
-
-[env.preview]
-name = "goldshore-preview"
-routes = [
-  { pattern = "goldshore.org/*", zone_name = "goldshore.org" },
-  { pattern = "fortune-fund.com/*", zone_name = "fortune-fund.com" },
-  { pattern = "fortune-fund.games/*", zone_name = "fortune-fund.games" },
-  { pattern = "goldshore.foundation/*", zone_name = "goldshore.foundation" },
-  { pattern = "goldshorefoundation.org/*", zone_name = "goldshorefoundation.org" },
-  { pattern = "rmarston.com/*", zone_name = "rmarston.com" },
-  { pattern = "gearswipe.com/*", zone_name = "gearswipe.com" },
-  { pattern = "armsway.com/*", zone_name = "armsway.com" },
-  { pattern = "armsway.net/*", zone_name = "armsway.net" },
-  { pattern = "banproof.me/*", zone_name = "banproof.me" },
-  { pattern = "preview.goldshore.org/*", zone_name = "goldshore.org" }
-]
-
-[[analytics_engine_datasets]]
-binding = "GOLD_ANALYTICS"
-dataset = "goldshore-events"
-
-[env.dev]
-name = "goldshore-dev"
-routes = [
-  { pattern = "dev.goldshore.org/*", zone_name = "goldshore.org" }
-]
-
-[env.preview.vars]
-ADMIN_ASSETS = "https://goldshore-admin.pages.dev"
-PREVIEW_ADMIN_ASSETS = "https://goldshore-admin-preview.pages.dev"
-DEV_ADMIN_ASSETS = "https://goldshore-admin-dev.pages.dev"
-
-[env.dev.vars]
-ADMIN_ASSETS = "https://goldshore-admin.pages.dev"
-PREVIEW_ADMIN_ASSETS = "https://goldshore-admin-preview.pages.dev"
-DEV_ADMIN_ASSETS = "https://goldshore-admin-dev.pages.dev"
+[[env.preview.routes]]
+pattern = "*.goldshore-api.workers.dev/*"
+custom_domain = false

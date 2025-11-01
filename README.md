@@ -1,95 +1,83 @@
-# GoldShore Monorepo
+# GoldShore Platform Monorepo
 
-This repository houses the GoldShore web properties, Cloudflare Worker router, shared packages, and automation workflows. It is organised as a multi-app workspace so infrastructure, front-ends, and workers can ship together through a single pipeline.
+This repository contains the GoldShore web properties, API workers, shared packages, and infrastructure automation.
+It combines the public site and admin console (Astro + Tailwind deployed to Cloudflare Pages) with the `goldshore-api`
+Cloudflare Worker that backs authenticated API requests. The repository is organised as a multi-app workspace so
+infrastructure, front-ends, and workers can ship together through a single pipeline while keeping the root project simple to run.
+
+## Prerequisites
+
+- Node.js 20+
+- npm 10+
+- Cloudflare account with Wrangler access tokens for worker deployments
 
 ## Repository layout
 
 ```
 .
 ├─ apps/
-│  ├─ admin/        # Admin dashboard (Astro)
-│  ├─ api/          # Cloudflare Worker API (Wrangler)
+│  ├─ admin/        # Admin dashboard (Astro workspace)
+│  ├─ api/          # Durable Objects + API Worker
 │  ├─ api-router/   # Edge router that fans out to workers & Pages
-│  └─ web/          # Marketing site (Astro)
-├─ infra/
-│  ├─ cf/           # Cloudflare bindings + D1 migrations
-│  ├─ policies/     # Zero Trust & Access documentation
-│  └─ scripts/      # DNS and Access automation scripts
-├─ packages/
-│  ├─ admin/        # Admin UI workspace shell
-│  ├─ agent/        # AI agent orchestration helpers
-│  ├─ ai-maint/     # Automated maintenance utilities
-│  ├─ api/          # Shared Worker API utilities
-│  ├─ assets/       # Shared logos and favicons
-│  ├─ libs/         # Cross-project TypeScript helpers
-│  ├─ sentry/       # Optional Sentry bindings
-│  ├─ theme/        # Design tokens and CSS primitives
-│  └─ web/          # Marketing site composition helpers
+│  └─ web/          # Legacy marketing site + asset processing scripts
 ├─ docs/            # Runbooks and internal documentation
-├─ .github/workflows
-├─ package.json     # npm workspaces + shared tooling
-└─ wrangler.toml    # Worker + Pages routing configuration
+├─ infra/           # Cloudflare automation scripts
+├─ public/          # Assets served by the goldshore-api worker and public site
+├─ src/             # Astro site, admin console, and API worker entrypoint
+├─ packages/
+│  ├─ assets/       # Shared asset pipeline helpers
+│  └─ theme/        # Shared UI theming
+├─ wrangler.toml            # goldshore-api worker configuration
+├─ wrangler.worker.toml     # Router worker configuration for legacy assets
+└─ ...
 ```
 
-## Getting started
+## Installing dependencies
 
-1. Install dependencies from the repo root:
-   ```bash
-   npm install
-   ```
-2. Start the marketing site locally:
-   ```bash
-   npm run dev --workspace apps/web
-   ```
-3. Optionally run the admin dashboard:
-   ```bash
-   npm run dev --workspace apps/admin
-   ```
-4. Optimise images before committing new assets:
-   ```bash
-   npm run process:images
-   ```
+```bash
+npm ci
+```
 
-`.dev.vars.example` lists useful environment variables for local previews. Copy it to `.dev.vars` and fill in placeholder values.
+## Useful scripts
+
+### Root workspace
+
+```bash
+npm run dev                # Run all workspaces via Turborepo
+npm run build              # Build all workspaces
+npm run lint               # Run linting across workspaces
+npm run typecheck          # Type-check workspaces
+npm run process:images     # Optimise shared image assets
+npm run build:site         # Build the Astro site in ./src to ./dist
+npm run dev:site           # Start the Astro site locally on localhost:4321
+npm run preview:site       # Preview the built Astro site
+```
+
+### Targeted development
+
+```bash
+npm run dev --workspace apps/web             # Legacy marketing site dev server
+npm run dev --workspace apps/admin           # Admin console dev server
+npm run dev --workspace apps/api-router      # Worker router dev server
+npm run dev --workspace apps/api             # Durable object/API worker dev server
+```
 
 ## Deployments
 
-The **Deploy goldshore + infra** workflow (`.github/workflows/deploy.yml`) runs on pushes to `main` that touch application, package, or infrastructure files. The pipeline:
+- **Cloudflare Pages:** `./dist` is published via the `Deploy GoldShore Platform` workflow using
+  [`cloudflare/pages-action`](https://github.com/cloudflare/pages-action). Environment URLs are set through the workflow env vars.
+- **API Worker (`wrangler.toml`):** Deployed with the `Deploy Gold Shore API` workflow.
+- **Router Worker (`wrangler.worker.toml`):** Published from the `deploy-workers` job inside the platform workflow and handles
+  routing to environment-specific asset origins.
+- **Shared infrastructure:** `infra/scripts/*.sh` keep Access policies and DNS records in sync via GitHub Actions.
 
-1. Installs dependencies and builds shared assets once.
-2. Reuses the build artifact to deploy the Cloudflare Workers to the `preview`, `dev`, and `production` environments.
-3. Serialises shared Cloudflare mutations by rebuilding Access applications and syncing DNS records after all worker deployments finish.
+## Local worker development
 
-Manual runs are available through **Run workflow** in the GitHub Actions UI.
-
-## Required repository secrets
-
-Configure the following under **Settings → Secrets and variables → Actions**:
-
-| Secret | Purpose |
-| --- | --- |
-| `CF_ACCOUNT_ID` | Cloudflare account that hosts Workers, D1, and Access apps |
-| `CF_API_TOKEN` | Token with Workers, Pages, DNS, and Access permissions |
-| `CF_ZONE_ID` | Primary DNS zone identifier (used by automation scripts) |
-| `OPENAI_API_KEY` | Used by the AI maintenance utilities |
-| `OPENAI_PROJECT_ID` | OpenAI project identifier for AI maintenance |
-
-Additional credentials (for example Access `AUD/ISS`, Turnstile, and Formspree endpoints) should be stored per environment using Wrangler secrets or Pages environment variables.
-
-## Infrastructure automation
-
-- `infra/scripts/upsert-goldshore-dns.sh` reconciles DNS across GoldShore and Fortune Fund domains. It reads from configuration embedded in the script and requires `CF_API_TOKEN`/`CF_ACCOUNT_ID` at runtime.
-- `infra/scripts/rebuild-goldshore-access.sh` reapplies Cloudflare Access application settings so new routes stay protected.
-
-Both scripts are idempotent and can be triggered manually or via the deploy workflow.
-
-## Local Wrangler usage
-
-To preview the API router or other workers locally:
+The API worker can be started locally with Wrangler:
 
 ```bash
-npm run dev --workspace apps/api-router        # Local worker dev server
-npm run deploy --workspace apps/api -- --env=dev  # Deploy the API worker to dev
+npm run dev:site          # Builds the Astro site for hot reload
+npx wrangler dev --config wrangler.toml
 ```
 
-Consult the guides in [`docs/`](docs) for deeper architecture notes, onboarding instructions, and Cloudflare deployment details.
+Set sensitive configuration via `wrangler secret put …` or a local `.dev.vars` file (ignored by Git).
