@@ -48,11 +48,32 @@ function parseAllowedOrigins(env) {
     .filter((value) => value !== "");
 }
 
+function resolveAllowedOrigin(requestOrigin, allowedOrigins) {
+  if (typeof requestOrigin !== "string") {
+    return null;
+  }
+
+  const normalizedOrigin = requestOrigin.trim();
+  if (normalizedOrigin === "" || !Array.isArray(allowedOrigins)) {
+    return null;
+  }
+
+  for (const allowed of allowedOrigins) {
+    if (allowed === "*" || allowed === normalizedOrigin) {
+      return normalizedOrigin;
+    }
+  }
+
+  return null;
+}
+
 function buildCorsHeaders(origin) {
   const headers = new Headers(BASE_CORS_HEADERS);
 
   if (origin) {
     headers.set("Access-Control-Allow-Origin", origin);
+    headers.set("Vary", "Origin");
+  } else {
     headers.set("Vary", "Origin");
   }
 
@@ -154,9 +175,10 @@ function authorizeRequest(request, env, origin) {
   const expectedToken = resolveExpectedToken(env);
 
   if (!expectedToken) {
-    return jsonResponse(
-      { error: "Server misconfigured: missing GPT service token." },
-      { status: 500 },
+    return errorResponse(
+      "Server misconfigured: missing GPT service token.",
+      500,
+      undefined,
       origin,
     );
   }
@@ -164,7 +186,7 @@ function authorizeRequest(request, env, origin) {
   const providedToken = readClientToken(request);
 
   if (!timingSafeEqual(providedToken, expectedToken)) {
-    return jsonResponse({ error: "Unauthorized." }, { status: 401 }, origin);
+    return errorResponse("Unauthorized.", 401, undefined, origin);
   }
 
   return null;
@@ -236,8 +258,9 @@ function buildChatCompletionPayload(payload) {
   }
 
   const { model = DEFAULT_MODEL, messages, prompt, ...rest } = payload;
+  const hasMessages = Array.isArray(messages);
 
-  if (!Array.isArray(messages) && typeof prompt !== "string") {
+  if (!hasMessages && typeof prompt !== "string") {
     throw new Error("Request body must include either a 'messages' array or a 'prompt' string.");
   }
 
