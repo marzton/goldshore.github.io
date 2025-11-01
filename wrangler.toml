@@ -25,8 +25,3 @@ CF_ACCESS_JWKS_URL = "https://rmarston.cloudflareaccess.com/cdn-cgi/access/certs
 [[analytics_engine_datasets]]
 binding = "GOLD_ANALYTICS"
 dataset = "goldshore-events"
-
-# (Only add bindings you actually use)
-[[analytics_engine_datasets]]
-binding = "GOLD_ANALYTICS"
-dataset = "goldshore-events"
