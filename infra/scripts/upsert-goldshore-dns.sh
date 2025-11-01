@@ -227,6 +227,13 @@ sync_zone() {
           skip_record=true
         fi
       fi
+    elif [[ "$name" == "admin.$zone_name" && ${ADMIN_CNAME_TARGET+x} ]]; then
+      if [[ -n "${ADMIN_CNAME_TARGET}" ]]; then
+        content="$ADMIN_CNAME_TARGET"
+      else
+        echo "Skipping CNAME record for ${name} because ADMIN_CNAME_TARGET is empty" >&2
+        skip_record=true
+      fi
     elif [[ "$name" == "www.$zone_name" && ${WWW_CNAME_TARGET+x} ]]; then
       if [[ -n "${WWW_CNAME_TARGET}" ]]; then
         content="$WWW_CNAME_TARGET"
@@ -249,19 +256,37 @@ sync_zone() {
         skip_record=true
       fi
     elif [[ "$name" == "api.$zone_name" ]]; then
-      if [[ "$type" == "A" && ${IPv4_TARGET+x} ]]; then
-        if [[ -n "${IPv4_TARGET}" ]]; then
-          content="$IPv4_TARGET"
-        else
-          echo "Skipping A record for ${name} because IPv4_TARGET is empty" >&2
-          skip_record=true
+      if [[ "$type" == "A" ]]; then
+        if [[ ${API_IPV4_TARGET+x} ]]; then
+          if [[ -n "${API_IPV4_TARGET}" ]]; then
+            content="$API_IPV4_TARGET"
+          else
+            echo "Skipping A record for ${name} because API_IPV4_TARGET is empty" >&2
+            skip_record=true
+          fi
+        elif [[ ${IPv4_TARGET+x} ]]; then
+          if [[ -n "${IPv4_TARGET}" ]]; then
+            content="$IPv4_TARGET"
+          else
+            echo "Skipping A record for ${name} because IPv4_TARGET is empty" >&2
+            skip_record=true
+          fi
         fi
-      elif [[ "$type" == "AAAA" && ${IPv6_TARGET+x} ]]; then
-        if [[ -n "${IPv6_TARGET}" ]]; then
-          content="$IPv6_TARGET"
-        else
-          echo "Skipping AAAA record for ${name} because IPv6_TARGET is empty" >&2
-          skip_record=true
+      elif [[ "$type" == "AAAA" ]]; then
+        if [[ ${API_IPV6_TARGET+x} ]]; then
+          if [[ -n "${API_IPV6_TARGET}" ]]; then
+            content="$API_IPV6_TARGET"
+          else
+            echo "Skipping AAAA record for ${name} because API_IPV6_TARGET is empty" >&2
+            skip_record=true
+          fi
+        elif [[ ${IPv6_TARGET+x} ]]; then
+          if [[ -n "${IPv6_TARGET}" ]]; then
+            content="$IPv6_TARGET"
+          else
+            echo "Skipping AAAA record for ${name} because IPv6_TARGET is empty" >&2
+            skip_record=true
+          fi
         fi
       fi
     fi
