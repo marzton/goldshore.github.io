@@ -153,6 +153,21 @@ export default {
     const headers = new Headers(request.headers);
     headers.delete('host');
 
+    headers.set('x-forwarded-host', url.host);
+    headers.set('x-forwarded-proto', url.protocol.replace(':', ''));
+
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    const connectingIp = request.headers.get('cf-connecting-ip');
+    if (connectingIp) {
+      headers.set(
+        'x-forwarded-for',
+        forwardedFor ? `${forwardedFor}, ${connectingIp}` : connectingIp,
+      );
+    }
+
+    const forwardedPort = url.port || (url.protocol === 'https:' ? '443' : '80');
+    headers.set('x-forwarded-port', forwardedPort);
+
     const init: RequestInit = {
       method: request.method,
       headers,
