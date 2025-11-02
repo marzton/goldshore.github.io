@@ -12,14 +12,7 @@ Empowering communities through secure, scalable, and intelligent infrastructure.
 | Preview     | `preview/*` branches | `preview.goldshore.org`<br>`preview.gearswipe.com`<br>`preview.armsway.com`<br>`preview.banproof.com`                                                         | `https://goldshore-org-preview.pages.dev` |
 | Development | `dev/*` branches     | `dev.goldshore.org`<br>`dev.gearswipe.com`<br>`dev.armsway.com`<br>`dev.banproof.com`                                                                           | `https://goldshore-org-dev.pages.dev`     |
 
-Use the "Deploy to Cloudflare" workflow to publish updates on demand by selecting the desired environment. API hostnames such as `api.goldshore.org` stay mapped to their dedicated services and are intentionally excluded from the router worker routes. When new marketing hostnames are introduced:
-
-1. Add them to this table and then mirror the hostname in each `wrangler.toml` environment:
-   - Append a route under `[env.production].routes` for the marketing hostname only.
-   - Add the matching preview hostname (for example `preview.<domain>`) under `[env.preview].routes`.
-   - Add the matching development hostname (for example `dev.<domain>`) under `[env.dev].routes`.
-2. Avoid `*.<domain>` wildcard routes—those would capture API, SMTP, MX, and other service subdomains that should keep resolving to their dedicated infrastructure instead of the worker router.
-3. Confirm DNS continues to point service subdomains (such as `api.<domain>` or `smtp.<domain>`) at their dedicated origins so the worker router never intercepts them.
+Use the "Deploy to Cloudflare" workflow to publish updates on demand by selecting the desired environment. API hostnames such as `api.goldshore.org` stay mapped to their dedicated services and are intentionally excluded from the router worker routes, so only the explicitly listed marketing hosts are proxied through the worker. Cloudflare processes Worker routes by priority before declaration order, so preview and dev entries are assigned a lower priority value than the production hosts. Keep any environment-specific entries grouped at the top—and avoid wildcard patterns—so non-site subdomains keep resolving to their own infrastructure.
 
 ## Environment configuration
 
