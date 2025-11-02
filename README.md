@@ -23,6 +23,7 @@ can authenticate with OpenAI:
 | --- | --- | --- |
 | `FORMSPREE_ENDPOINT` | Destination endpoint provided by Formspree | `wrangler secret put FORMSPREE_ENDPOINT` (or add to `.dev.vars` for local previews) |
 | `TURNSTILE_SECRET` | Server-side Turnstile verification secret | `wrangler secret put TURNSTILE_SECRET` (or add to `.dev.vars`) |
+| `PUBLIC_TURNSTILE_SITE_KEY` | Public site key injected into the contact form Turnstile widget | Define in `apps/site/wrangler.toml` (`[vars]`) or add to `.dev.vars` |
 | `OPENAI_API_KEY` | Authenticates calls to the `/api/gpt` handler | `wrangler secret put OPENAI_API_KEY` (or add to `.dev.vars`) |
 | `GPT_PROXY_SECRET` | Shared secret browsers must send when calling `/api/gpt` | `wrangler secret put GPT_PROXY_SECRET` (or add to `.dev.vars`) |
 | `GPT_ALLOWED_ORIGINS` | Comma-separated list of origins that receive CORS access | Define in `apps/api-worker/wrangler.toml` (`[vars]`) or add to `.dev.vars` |
