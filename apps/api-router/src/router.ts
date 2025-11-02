@@ -8,6 +8,8 @@ type Env = {
   ADMIN_ASSETS?: string;
   PREVIEW_ADMIN_ASSETS?: string;
   DEV_ADMIN_ASSETS?: string;
+  CORS_ALLOWLIST?: string;
+  ASSET_ALLOWED_ORIGINS?: string;
   GPT_ALLOWED_ORIGINS?: string;
 };
 
@@ -16,52 +18,23 @@ const pickOrigin = (host: string, env: Env): string => {
     return env.ADMIN_ASSETS ?? 'https://goldshore-admin.pages.dev';
   }
 
-  if (host.startsWith('preview.')) {
-    if (host === 'preview.admin.goldshore.org') {
-      return env.PREVIEW_ADMIN_ASSETS ?? 'https://goldshore-admin-preview.pages.dev';
-    }
+  if (host === 'preview.admin.goldshore.org') {
+    return env.PREVIEW_ADMIN_ASSETS ?? 'https://goldshore-admin-preview.pages.dev';
+  }
 
+  if (host === 'dev.admin.goldshore.org') {
+    return env.DEV_ADMIN_ASSETS ?? 'https://goldshore-admin-dev.pages.dev';
+  }
+
+  if (host.startsWith('preview.')) {
     return env.PREVIEW_ASSETS ?? 'https://goldshore-org-preview.pages.dev';
   }
 
   if (host.startsWith('dev.')) {
-    if (host === 'dev.admin.goldshore.org') {
-      return env.DEV_ADMIN_ASSETS ?? 'https://goldshore-admin-dev.pages.dev';
-    }
-
     return env.DEV_ASSETS ?? 'https://goldshore-org-dev.pages.dev';
   }
 
   return env.PRODUCTION_ASSETS ?? 'https://goldshore-org.pages.dev';
-};
-
-const parseAllowedOrigins = (raw?: string): string[] => {
-  if (!raw) {
-    return [];
-  }
-
-  return raw
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-};
-
-const resolveCorsOrigin = (requestOrigin: string | null, fallbackOrigin: string, allowedOrigins: string[]): string => {
-  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
-    return requestOrigin;
-  }
-
-  return fallbackOrigin;
-};
-
-const buildCorsHeaders = (requestOrigin: string | null, fallbackOrigin: string, allowedOrigins: string[]): Headers => {
-  const headers = new Headers();
-  headers.set('access-control-allow-origin', resolveCorsOrigin(requestOrigin, fallbackOrigin, allowedOrigins));
-  headers.set('access-control-allow-methods', 'GET,HEAD,POST,OPTIONS');
-  headers.set('access-control-allow-headers', 'accept,content-type');
-  headers.set('access-control-max-age', '86400');
-  headers.set('vary', 'Origin');
-  return headers;
 };
 
 const cachePolicy = (pathname: string): string =>
@@ -69,18 +42,117 @@ const cachePolicy = (pathname: string): string =>
     ? 'public, max-age=31536000, immutable'
     : 'public, s-maxage=600, stale-while-revalidate=86400';
 
+const parseAllowedOrigins = (env: Env): string[] => {
+  const raw = [env.CORS_ALLOWLIST, env.ASSET_ALLOWED_ORIGINS, env.GPT_ALLOWED_ORIGINS]
+    .filter(Boolean)
+    .join(',');
+
+  return Array.from(
+    new Set(
+      raw
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  );
+};
+
+const resolveAllowedOrigin = (origin: string | null, allowlist: string[]): string | null => {
+  if (!origin) {
+    return null;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch (error) {
+    return null;
+  }
+
+  for (const allowed of allowlist) {
+    if (allowed === '*') {
+      return parsed.origin;
+    }
+
+    try {
+      const allowedUrl = new URL(allowed);
+      if (allowedUrl.origin === parsed.origin) {
+        return parsed.origin;
+      }
+    } catch (error) {
+      // Ignore malformed entries in the allowlist.
+    }
+  }
+
+  return null;
+};
+
+const appendVary = (headers: Headers, value: string): void => {
+  const existing = headers.get('vary');
+  if (!existing) {
+    headers.set('vary', value);
+    return;
+  }
+
+  const current = existing
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!current.includes(value.toLowerCase())) {
+    headers.set('vary', `${existing}, ${value}`);
+  }
+};
+
+const applyCorsHeaders = (headers: Headers, origin: string | null, request: Request): void => {
+  if (!origin) {
+    headers.delete('access-control-allow-origin');
+    headers.delete('access-control-allow-headers');
+    headers.delete('access-control-allow-methods');
+    return;
+  }
+
+  headers.set('access-control-allow-origin', origin);
+  headers.set('access-control-allow-methods', 'GET,HEAD,OPTIONS');
+  const requestedHeaders = request.headers.get('Access-Control-Request-Headers');
+  if (requestedHeaders) {
+    headers.set('access-control-allow-headers', requestedHeaders);
+  } else {
+    headers.set('access-control-allow-headers', 'Origin,Accept,Content-Type,Authorization');
+  }
+  appendVary(headers, 'Origin');
+};
+
+const buildPreflightHeaders = (origin: string, request: Request): Headers => {
+  const headers = new Headers();
+  headers.set('access-control-allow-origin', origin);
+  headers.set('access-control-allow-methods', 'GET,HEAD,OPTIONS');
+  headers.set('access-control-max-age', '86400');
+  const requestedHeaders = request.headers.get('Access-Control-Request-Headers');
+  if (requestedHeaders) {
+    headers.set('access-control-allow-headers', requestedHeaders);
+  } else {
+    headers.set('access-control-allow-headers', 'Origin,Accept,Content-Type,Authorization');
+  }
+  appendVary(headers, 'Origin');
+  return headers;
+};
+
 export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
-
-    const allowedOrigins = parseAllowedOrigins(env.GPT_ALLOWED_ORIGINS);
-    const requestOrigin = request.headers.get('Origin');
-    const fallbackOrigin = `${url.protocol}//${url.host}`;
+    const allowlist = parseAllowedOrigins(env);
+    const corsOrigin = resolveAllowedOrigin(request.headers.get('Origin'), allowlist);
 
     if (request.method === 'OPTIONS') {
-      const cors = buildCorsHeaders(requestOrigin, fallbackOrigin, allowedOrigins);
-      cors.set('content-length', '0');
-      return new Response(null, { status: 204, headers: cors });
+      if (!corsOrigin) {
+        return new Response(null, { status: 403 });
+      }
+
+      return new Response(null, {
+        status: 204,
+        headers: buildPreflightHeaders(corsOrigin, request),
+      });
     }
 
     const origin = pickOrigin(url.hostname, env);
@@ -93,47 +165,17 @@ export default {
       method: request.method,
       headers,
       redirect: 'follow',
-      body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
     };
 
-    const response = await fetch(upstream.toString(), init);
-    const cors = buildCorsHeaders(requestOrigin, fallbackOrigin, allowedOrigins);
+    if (!['GET', 'HEAD'].includes(request.method)) {
+      init.body = request.body;
+    }
 
+    const response = await fetch(upstream.toString(), init);
     const outgoing = new Headers(response.headers);
     outgoing.set('x-served-by', env.APP_NAME);
     outgoing.set('cache-control', cachePolicy(url.pathname));
-    cors.forEach((value, key) => {
-      if (key.toLowerCase() === 'vary') {
-        const existing = outgoing.get('vary');
-        const existingValues = existing
-          ? existing
-              .split(',')
-              .map((entry) => entry.trim())
-              .filter(Boolean)
-          : [];
-        const existingSet = new Set(existingValues.map((entry) => entry.toLowerCase()));
-
-        value
-          .split(',')
-          .map((entry) => entry.trim())
-          .filter(Boolean)
-          .forEach((entry) => {
-            const lower = entry.toLowerCase();
-            if (!existingSet.has(lower)) {
-              existingValues.push(entry);
-              existingSet.add(lower);
-            }
-          });
-
-        if (existingValues.length > 0) {
-          outgoing.set('vary', existingValues.join(', '));
-        }
-
-        return;
-      }
-
-      outgoing.set(key, value);
-    });
+    applyCorsHeaders(outgoing, corsOrigin, request);
 
     return new Response(response.body, {
       status: response.status,
