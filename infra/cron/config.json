@@ -19,6 +19,21 @@
     "checks": [
       { "type": "pages_build_status", "project": "goldshore-web" },
       { "type": "pages_build_status", "project": "goldshore-admin" },
+      {
+        "type": "pages_domain_recovery",
+        "targets": [
+          {
+            "project": "goldshore-web",
+            "host": "https://goldshore.org",
+            "domains": ["goldshore.org"]
+          },
+          {
+            "project": "goldshore-admin",
+            "host": "https://admin.goldshore.org",
+            "domains": ["admin.goldshore.org"]
+          }
+        ]
+      },
       { "type": "worker_health", "script": "goldshore-api-worker", "path": "/v1/health" },
       {
         "type": "dns_records",
