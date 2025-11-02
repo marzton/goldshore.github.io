@@ -25,7 +25,7 @@
           {
             "project": "goldshore-web",
             "host": "https://goldshore.org",
-            "domains": ["goldshore.org", "www.goldshore.org"]
+            "domains": ["goldshore.org"]
           },
           {
             "project": "goldshore-web",
