@@ -4,7 +4,19 @@ import cloudflare from '@astrojs/cloudflare';
 export default defineConfig({
   output: 'server',
   adapter: cloudflare({ imageService: 'passthrough' }),
-  vite: { build: { assetsInlineLimit: 0 } },
+  vite: {
+    build: { assetsInlineLimit: 0 },
+    ssr: { target: 'webworker' },
+    resolve: {
+      alias: {
+        'node:crypto': false,
+        crypto: false,
+      },
+    },
+    optimizeDeps: {
+      exclude: ['node:crypto'],
+    },
+  },
   integrations: [
     {
       name: 'csp-nonce',
