@@ -117,8 +117,8 @@
   "workers": [
     {
       "name": "goldshore-api",
-      "main_entrypoint": "packages/api/dist/index.js",
-      "compatibility_date": "2025-10-27",
+      "main_entrypoint": "apps/api-worker/dist/src/index.js",
+      "compatibility_date": "2024-11-20",
       "placement": {
         "mode": "smart"
       },
@@ -129,7 +129,7 @@
       ],
       "triggers": {
         "crons": [
-          "*/5 * * * *"
+          "*/30 * * * *"
         ]
       },
       "migrations": [
@@ -138,20 +138,10 @@
           "new_classes": [
             "SessionDO"
           ]
-        },
-        {
-          "tag": "v2",
-          "new_classes": [
-            "RateLimiterDO"
-          ]
         }
       ],
       "bindings": {
-        "KV": [
-          {
-            "binding": "AGENT_PROMPT_KV",
-            "id": "${AGENT_PROMPT_KV_ID}"
-          },
+        "kv_namespaces": [
           {
             "binding": "KV_SESSIONS",
             "id": "${KV_SESSIONS_ID}"
@@ -221,6 +211,10 @@
           "GOLDSHORE_ENV": "production",
           "GOLDSHORE_ORIGIN": "https://goldshore.org",
           "GOLDSHORE_CORS": "https://goldshore.org,https://www.goldshore.org,https://admin.goldshore.org,https://preview.goldshore.org,http://localhost:5173,http://127.0.0.1:5173",
+          "JWT_AUDIENCE": "goldshore-api",
+          "JWT_ISSUER": "https://auth.goldshore.org",
+          "RATE_LIMIT_MAX": "120",
+          "RATE_LIMIT_WINDOW": "60"
           "FF_ENABLE_TRADING": "true",
           "FF_ENABLE_SENTIMENT": "true",
           "ACCESS_AUD": "goldshore-admin",
