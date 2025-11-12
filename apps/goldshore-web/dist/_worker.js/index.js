@@ -1,7 +1,7 @@
 globalThis.process ??= {}; globalThis.process.env ??= {};
 import { renderers } from './renderers.mjs';
 import { createExports } from './_@astrojs-ssr-adapter.mjs';
-import { manifest } from './manifest_C1HU6r9o.mjs';
+import { manifest } from './manifest_B3ZkUe65.mjs';
 
 const _page0 = () => import('./pages/_image.astro.mjs');
 const _page1 = () => import('./pages/about.astro.mjs');
@@ -18,7 +18,7 @@ const _page11 = () => import('./pages/terms.astro.mjs');
 const _page12 = () => import('./pages/index.astro.mjs');
 
 const pageMap = new Map([
-    ["../../node_modules/.pnpm/astro@4.16.19_@types+node@22.19.1_rollup@4.53.2_typescript@5.9.3/node_modules/astro/dist/assets/endpoint/generic.js", _page0],
+    ["../../node_modules/.pnpm/astro@4.16.19_@types+node@24.10.1_rollup@4.53.2_typescript@5.9.3/node_modules/astro/dist/assets/endpoint/generic.js", _page0],
     ["src/pages/about.astro", _page1],
     ["src/pages/admin/index.astro", _page2],
     ["src/pages/blog/index.astro", _page3],

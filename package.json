@@ -22,18 +22,18 @@
     "validate:codex-config": "tsx infra/limits/validate_codex_config.ts"
   },
   "dependencies": {
-    "yaml": "^2.6.0"
+    "yaml": "^2.8.1"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241022.0",
-    "@types/node": "^22.9.0",
-    "astro": "^4.13.0",
-    "eslint": "^9.11.0",
-    "octokit": "^4.0.2",
+    "@cloudflare/workers-types": "^4.20251111.0",
+    "@types/node": "^24.10.1",
+    "astro": "^5.15.5",
+    "eslint": "^9.39.1",
+    "octokit": "^5.0.5",
     "tslib": "^2.8.1",
-    "tsx": "^4.19.2",
-    "turbo": "^2.6.0",
-    "typescript": "^5.6.3",
-    "wrangler": "^3.82.0"
+    "tsx": "^4.20.6",
+    "turbo": "^2.6.1",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.47.0"
   }
 }

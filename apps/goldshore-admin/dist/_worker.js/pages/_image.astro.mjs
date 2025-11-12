@@ -947,7 +947,7 @@ const $$Image = createComponent(async ($$result, $$props, $$slots) => {
     additionalAttributes.srcset = image.srcSet.attribute;
   }
   return renderTemplate`${maybeRenderHead()}<img${addAttribute(image.src, "src")}${spreadAttributes(additionalAttributes)}${spreadAttributes(image.attributes)}>`;
-}, "/app/node_modules/.pnpm/astro@4.16.19_@types+node@22.19.1_rollup@4.53.2_typescript@5.9.3/node_modules/astro/components/Image.astro", void 0);
+}, "/app/node_modules/.pnpm/astro@4.16.19_@types+node@24.10.1_rollup@4.53.2_typescript@5.9.3/node_modules/astro/components/Image.astro", void 0);
 
 const mimes = {
   "3g2": "video/3gpp2",
@@ -1454,7 +1454,7 @@ const $$Picture = createComponent(async ($$result, $$props, $$slots) => {
     const srcsetAttribute = props.densities || !props.densities && !props.widths ? `${image.src}${image.srcSet.values.length > 0 ? ", " + image.srcSet.attribute : ""}` : image.srcSet.attribute;
     return renderTemplate`<source${addAttribute(srcsetAttribute, "srcset")}${addAttribute(lookup(image.options.format ?? image.src) ?? `image/${image.options.format}`, "type")}${spreadAttributes(sourceAdditionalAttributes)}>`;
   })} <img${addAttribute(fallbackImage.src, "src")}${spreadAttributes(imgAdditionalAttributes)}${spreadAttributes(fallbackImage.attributes)}> </picture>`;
-}, "/app/node_modules/.pnpm/astro@4.16.19_@types+node@22.19.1_rollup@4.53.2_typescript@5.9.3/node_modules/astro/components/Picture.astro", void 0);
+}, "/app/node_modules/.pnpm/astro@4.16.19_@types+node@24.10.1_rollup@4.53.2_typescript@5.9.3/node_modules/astro/components/Picture.astro", void 0);
 
 const imageConfig = {"service":{"entrypoint":"astro/assets/services/noop","config":{}},"domains":[],"remotePatterns":[]};
 					const getImage = async (options) => await getImage$1(options, imageConfig);
