@@ -12,26 +12,10 @@
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "deploy": "turbo run deploy",
-    "dev:api": "wrangler dev --config apps/api-worker/wrangler.toml",
-    "build:api": "wrangler build --config apps/api-worker/wrangler.toml",
-    "deploy:api": "wrangler deploy --config apps/api-worker/wrangler.toml",
-    "enforce:dns": "bash infra/scripts/enforce-dns.sh",
-    "agent:poll": "tsx infra/cron/agent_poll.ts",
-    "agent:dryrun": "DRY_RUN=1 tsx infra/cron/agent_poll.ts",
-    "validate:codex-config": "tsx infra/limits/validate_codex_config.ts"
-  },
-  "dependencies": {
-    "yaml": "^2.8.1"
+    "deploy": "turbo run deploy"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20251111.0",
-    "@types/node": "^24.10.1",
-    "astro": "^5.15.5",
     "eslint": "^9.39.1",
-    "octokit": "^5.0.5",
-    "tslib": "^2.8.1",
-    "tsx": "^4.20.6",
     "turbo": "^2.6.1",
     "typescript": "^5.9.3",
     "wrangler": "^4.47.0"
