@@ -1,0 +1,43 @@
+{
+  "zone": "goldshore.org",
+  "last_reviewed": "2024-02-20",
+  "description": "Declarative DNS inventory for Goldshore managed through the upsert script and Cloudflare API.",
+  "records": [
+    {
+      "type": "CNAME",
+      "name": "@",
+      "content": "goldshore-org.pages.dev",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Root domain served from the Pages production deployment via the Worker."
+    },
+    {
+      "type": "CNAME",
+      "name": "www",
+      "content": "goldshore.org",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Primary vanity domain alias."
+    },
+    {
+      "type": "CNAME",
+      "name": "preview",
+      "content": "goldshore-org-preview.pages.dev",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Stakeholder preview hostname."
+    },
+    {
+      "type": "CNAME",
+      "name": "dev",
+      "content": "goldshore-org-dev.pages.dev",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Developer sandbox mapped to dev Pages environment."
+    }
+  ]
+}
