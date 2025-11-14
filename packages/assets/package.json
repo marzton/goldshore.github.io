@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./logo-wordmark-on-light.svg": "./goldshore/logo-wordmark-on-light.svg",
-    "./favicon.svg": "./goldshore/favicon.svg"
+    "./favicon.svg": "./goldshore/favicon.svg",
+    "./penrose-logo.svg": "./goldshore/penrose-logo.svg"
   }
 }

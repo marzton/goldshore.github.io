@@ -1,19 +1,282 @@
 ---
 import Admin from "../layouts/Admin.astro";
+import penroseLogo from "@goldshore/assets/penrose-logo.svg?url";
+
+const navItems = [
+  { icon: "🏠", label: "Home", href: "/admin", active: true },
+  { icon: "📈", label: "Analytics", href: "/admin/analytics/overview" },
+  { icon: "💹", label: "Trading", href: "/admin/trading" },
+  { icon: "📣", label: "Ads", href: "/admin/ads/campaigns" },
+  { icon: "👥", label: "Clients", href: "/admin/clients/list" },
+  { icon: "📂", label: "Projects", href: "/admin/projects" },
+  { icon: "⚙️", label: "Settings", href: "/admin/settings/profile" }
+];
+
+const drawerActions = ["Client Preview", "Run Backtest", "System Standby"];
+const quickApps = [
+  { label: "Email Generator", icon: "✉️", href: "/admin/apps/email-generator" },
+  { label: "Crawler", icon: "🛰️", href: "/admin/apps/crawler" },
+  { label: "Media Lab", icon: "🎞️", href: "/admin/apps/media" },
+  { label: "LLM Console", icon: "🧠", href: "/admin/apps/llm-console" }
+];
+const liveStats = [
+  { label: "Live visitors", value: "1,248", trend: "+6.2%", caption: "Command feed", state: "positive" },
+  { label: "Running ads", value: "32", trend: "+4.1%", caption: "Campaigns online", state: "positive" },
+  { label: "Active trades", value: "18", trend: "+2.3%", caption: "Options + equities", state: "positive" },
+  { label: "Tasks in progress", value: "27", trend: "-1.2%", caption: "Ops queue", state: "warning" }
+];
+const tradingStreams = [
+  { name: "GS-OPS Options", window: "Delta neutral · 15m", pnl: "+12.4%", delta: "+0.82" },
+  { name: "Rivera Paper", window: "AI energy pairs", pnl: "+4.7%", delta: "+0.21" },
+  { name: "Vantage Backtest", window: "24h lookback", pnl: "+0.9%", delta: "+0.04" }
+];
+const campaigns = [
+  { name: "Helios Launch", status: "Scaling", spend: "$12.4K", roi: "+141%" },
+  { name: "Northwind Partners", status: "Learning", spend: "$6.8K", roi: "+88%" },
+  { name: "Channel Ops", status: "Paused", spend: "$3.1K", roi: "+64%" }
+];
+const pipeline = [
+  { stage: "Discovery", percent: 72, notes: "Client briefs locked" },
+  { stage: "Strategy", percent: 48, notes: "Awaiting approvals" },
+  { stage: "Execution", percent: 35, notes: "Media + build" },
+  { stage: "QA", percent: 18, notes: "Security & compliance" }
+];
+const clients = [
+  { name: "Caldera Bio", tier: "Platinum", status: "Green" },
+  { name: "Orion Futures", tier: "Gold", status: "Amber" },
+  { name: "Substrata Ops", tier: "Launch", status: "Green" }
+];
+const tasks = [
+  { name: "SOC2 Scan Sweep", eta: "08:21 Z", status: "IN PROGRESS" },
+  { name: "Gemini ingest sync", eta: "09:05 Z", status: "QUEUED" },
+  { name: "Ops Desk Stand-down", eta: "11:00 Z", status: "SCHEDULED" }
+];
+const aiDrawer = [
+  { name: "LLM Console", detail: "Realtime prompt bus" },
+  { name: "Media Lab", detail: "Renders & brand kits" },
+  { name: "Crawler", detail: "Surface lead intel" }
+];
+const floatingTiles = [
+  { title: "Trading", stat: "+18.4%", meta: "risk aligned" },
+  { title: "Projects", stat: "12 active", meta: "5 pipelines" },
+  { title: "Ads", stat: "32 online", meta: "spend $68k" },
+  { title: "AI Tools", stat: "7 apps", meta: "auto routines" }
+];
 ---
-<Admin>
-  <section class="space-y-4">
-    <h1 class="text-2xl font-bold">Trading Ops Overview</h1>
-    <p>Welcome to the GoldShore admin console. Choose a module from the sidebar to review customer activity, risk posture, and real-time trading telemetry.</p>
-    <div class="grid gap-4 md:grid-cols-2">
-      <article class="border rounded p-4">
-        <h2 class="font-semibold">Leads</h2>
-        <p>Monitor newly captured leads from marketing funnels synced via the API.</p>
-      </article>
-      <article class="border rounded p-4">
-        <h2 class="font-semibold">Risk Alerts</h2>
-        <p>Review threshold breaches, net exposure drifts, and automated interventions.</p>
-      </article>
-    </div>
-  </section>
+<Admin title="Gold Shore Labs Cockpit" description="Cockpit dashboard for Gold Shore Labs operators.">
+  <div class="dashboard" data-theme="night">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="logo">
+        <img src={penroseLogo} alt="Gold Shore Labs penrose logo" width="48" height="48" />
+        GOLD SHORE <span>LABS</span>
+      </div>
+      <nav class="nav" aria-label="Cockpit destinations">
+        {navItems.map((item) => (
+          <a class:list={{"nav-btn": true, active: item.active}} href={item.href} aria-label={item.label}>
+            <span aria-hidden="true">{item.icon}</span>
+            <span class="nav-label">{item.label}</span>
+          </a>
+        ))}
+      </nav>
+      <div class="drawer-handle">Flight Level <strong>380</strong></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="status-pill" role="status">
+            <span>Systems</span>
+            <strong>ARMED</strong>
+            <span>Night Ops</span>
+          </div>
+          <label class="sr-only" for="omni-search">Omni search</label>
+          <input id="omni-search" class="search" placeholder="Command everything" />
+        </div>
+        <div class="topbar-actions">
+          <button class="mode-toggle" type="button" aria-pressed="true">
+            <span>Night Mode</span>
+          </button>
+          <div class="user" aria-label="Commander profile" role="img"></div>
+        </div>
+      </header>
+
+      <section class="cockpit" aria-labelledby="cockpit-title">
+        <h2 id="cockpit-title" class="sr-only">Cockpit controls</h2>
+        <div class="gauge" role="img" aria-label="Systems load 72 percent">
+          <div class="gauge-dial">
+            <strong>72%</strong>
+            <span>Systems Load</span>
+          </div>
+          <div class="needle" style="--needle-angle: 40deg"></div>
+        </div>
+        <div class="side-controls">
+          <div class="armed-toggle" role="switch" aria-checked="true">
+            <span>ARM / DISARM</span>
+            <div class="switch"><span></span></div>
+          </div>
+          <div class="dimmer">
+            <label for="hue-slider">Hue control</label>
+            <input id="hue-slider" type="range" min="0" max="100" value="68" />
+          </div>
+          <div class="drawer" aria-label="Command drawer">
+            {drawerActions.map((action) => (
+              <button type="button">{action}</button>
+            ))}
+          </div>
+        </div>
+        <div class="quick-apps">
+          <p>Quick App Launcher</p>
+          <div class="quick-grid">
+            {quickApps.map((app) => (
+              <button type="button">
+                <span aria-hidden="true">{app.icon}</span>
+                <span>{app.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section class="metrics-row" aria-label="Live telemetry">
+        {liveStats.map((stat) => (
+          <article class="card metric">
+            <header>
+              <p>{stat.label}</p>
+              <span class:list={{"trend-positive": stat.state === "positive", "trend-warning": stat.state === "warning"}}>
+                {stat.trend}
+              </span>
+            </header>
+            <strong>{stat.value}</strong>
+            <p>{stat.caption}</p>
+          </article>
+        ))}
+      </section>
+
+      <section class="grid-panels" aria-label="Operations overview">
+        <article class="panel">
+          <header>
+            <span>Trading Engine</span>
+            <span class="status-ok">Synced</span>
+          </header>
+          <table>
+            <tbody>
+              {tradingStreams.map((stream) => (
+                <tr>
+                  <td>
+                    <strong>{stream.name}</strong>
+                    <small>{stream.window}</small>
+                  </td>
+                  <td class="status-ok">{stream.pnl}</td>
+                  <td>{stream.delta}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </article>
+
+        <article class="panel">
+          <header>
+            <span>Affiliate Campaigns</span>
+            <span class="status-ok">Live</span>
+          </header>
+          <table>
+            <tbody>
+              {campaigns.map((campaign) => (
+                <tr>
+                  <td>
+                    <strong>{campaign.name}</strong>
+                    <small>{campaign.status}</small>
+                  </td>
+                  <td>{campaign.spend}</td>
+                  <td class="status-ok">{campaign.roi}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </article>
+
+        <article class="panel">
+          <header>
+            <span>Project Pipeline</span>
+            <span>Flow</span>
+          </header>
+          <div class="timeline">
+            {pipeline.map((stage) => (
+              <div>
+                <div class="timeline-step">
+                  <strong>{stage.stage}</strong>
+                  <span>{stage.percent}%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress" style={`width: ${stage.percent}%`}></div>
+                </div>
+                <small>{stage.notes}</small>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article class="panel">
+          <header>
+            <span>Clients</span>
+            <span>Pulse</span>
+          </header>
+          <ul class="tasks" aria-label="Key clients">
+            {clients.map((client) => (
+              <li class="task">
+                <div>
+                  <strong>{client.name}</strong>
+                  <small>{client.tier}</small>
+                </div>
+                <span class:list={{"status-ok": client.status === "Green", "status-risk": client.status === "Amber"}}>
+                  {client.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </article>
+
+        <article class="panel">
+          <header>
+            <span>Tasks</span>
+            <span>Ops Queue</span>
+          </header>
+          <ul class="tasks" aria-label="Operations tasks">
+            {tasks.map((task) => (
+              <li class="task">
+                <div>
+                  <strong>{task.name}</strong>
+                  <small>{task.eta}</small>
+                </div>
+                <span>{task.status}</span>
+              </li>
+            ))}
+          </ul>
+        </article>
+
+        <article class="panel drawer-apps">
+          <header>
+            <span>AI Drawer</span>
+            <span>Slide-out</span>
+          </header>
+          {aiDrawer.map((tool) => (
+            <button type="button">
+              <strong>{tool.name}</strong>
+              <small>{tool.detail}</small>
+            </button>
+          ))}
+        </article>
+      </section>
+
+      <section class="floating-apps" aria-label="Floating command tiles">
+        {floatingTiles.map((tile) => (
+          <article class="floating-tile">
+            <p>{tile.title}</p>
+            <strong>{tile.stat}</strong>
+            <small>{tile.meta}</small>
+          </article>
+        ))}
+      </section>
+    </main>
+  </div>
 </Admin>
