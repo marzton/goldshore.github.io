@@ -452,12 +452,28 @@ async function updateCustomerSubscription({ req, env, params, tools }: RouteCont
   const fields: string[] = [];
   const values: any[] = [];
   if (body.customer_id !== undefined) {
+    const customerId = body.customer_id?.toString().trim();
+    if (!customerId) {
+      return tools.respond({ ok: false, error: "CUSTOMER_ID_REQUIRED" }, 400);
+    }
+    const customerExists = await env.DB.prepare("SELECT 1 FROM customers WHERE id = ?").bind(customerId).first();
+    if (!customerExists) {
+      return tools.respond({ ok: false, error: "INVALID_CUSTOMER" }, 400);
+    }
     fields.push("customer_id = ?");
-    values.push(body.customer_id?.toString().trim() || null);
+    values.push(customerId);
   }
   if (body.subscription_id !== undefined) {
+    const subscriptionId = body.subscription_id?.toString().trim();
+    if (!subscriptionId) {
+      return tools.respond({ ok: false, error: "SUBSCRIPTION_ID_REQUIRED" }, 400);
+    }
+    const subscriptionExists = await env.DB.prepare("SELECT 1 FROM subscriptions WHERE id = ?").bind(subscriptionId).first();
+    if (!subscriptionExists) {
+      return tools.respond({ ok: false, error: "INVALID_SUBSCRIPTION" }, 400);
+    }
     fields.push("subscription_id = ?");
-    values.push(body.subscription_id?.toString().trim() || null);
+    values.push(subscriptionId);
   }
   if (body.status !== undefined) {
     fields.push("status = ?");
