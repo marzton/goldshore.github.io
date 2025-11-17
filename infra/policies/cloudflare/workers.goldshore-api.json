@@ -1,0 +1,117 @@
+{
+  "script": "goldshore-api",
+  "description": "Primary API Worker powering authenticated trading and CRM endpoints.",
+  "compatibility_date": "2024-11-20",
+  "environments": {
+    "production": {
+      "routes": [
+        "api.goldshore.org/*"
+      ],
+      "vars": {
+        "GOLDSHORE_ENV": "production",
+        "GOLDSHORE_ORIGIN": "https://goldshore.org",
+        "GOLDSHORE_CORS": "https://goldshore.org,https://www.goldshore.org,https://admin.goldshore.org,https://preview.goldshore.org,http://localhost:5173,http://127.0.0.1:5173",
+        "JWT_AUDIENCE": "goldshore-api",
+        "JWT_ISSUER": "https://auth.goldshore.org",
+        "RATE_LIMIT_MAX": "120",
+        "RATE_LIMIT_WINDOW": "60"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "KV_SESSIONS",
+          "id": "${KV_SESSIONS_PROD}"
+        },
+        {
+          "binding": "KV_CACHE",
+          "id": "${KV_CACHE_PROD}"
+        }
+      ],
+      "durable_objects": [
+        {
+          "binding": "DO_SESSIONS",
+          "class_name": "SessionDO"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "Q_EVENTS",
+            "queue": "goldshore-events"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "goldshore-events",
+            "max_batch_size": 50,
+            "max_batch_timeout": 2,
+            "dead_letter_queue": "goldshore-dlq"
+          }
+        ]
+      }
+    },
+    "preview": {
+      "routes": [
+        "api-preview.goldshore.org/*"
+      ],
+      "vars": {
+        "GOLDSHORE_ENV": "preview",
+        "GOLDSHORE_ORIGIN": "https://preview.goldshore.org",
+        "GOLDSHORE_CORS": "https://preview.goldshore.org,https://admin-preview.goldshore.org",
+        "JWT_AUDIENCE": "goldshore-api-preview",
+        "JWT_ISSUER": "https://auth-preview.goldshore.org",
+        "RATE_LIMIT_MAX": "120",
+        "RATE_LIMIT_WINDOW": "60"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "KV_SESSIONS",
+          "id": "${KV_SESSIONS_PREVIEW}"
+        },
+        {
+          "binding": "KV_CACHE",
+          "id": "${KV_CACHE_PREVIEW}"
+        }
+      ],
+      "durable_objects": [
+        {
+          "binding": "DO_SESSIONS",
+          "class_name": "SessionDO"
+        }
+      ]
+    },
+    "development": {
+      "routes": [
+        "api-dev.goldshore.org/*"
+      ],
+      "vars": {
+        "GOLDSHORE_ENV": "development",
+        "GOLDSHORE_ORIGIN": "http://localhost:8787",
+        "GOLDSHORE_CORS": "http://localhost:8787,http://localhost:3000",
+        "JWT_AUDIENCE": "goldshore-api-dev",
+        "JWT_ISSUER": "https://auth-dev.goldshore.org",
+        "RATE_LIMIT_MAX": "120",
+        "RATE_LIMIT_WINDOW": "60"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "KV_SESSIONS",
+          "id": "${KV_SESSIONS_DEV}"
+        },
+        {
+          "binding": "KV_CACHE",
+          "id": "${KV_CACHE_DEV}"
+        }
+      ],
+      "durable_objects": [
+        {
+          "binding": "DO_SESSIONS",
+          "class_name": "SessionDO"
+        }
+      ]
+    }
+  },
+  "logpush": {
+    "dataset": "http_requests",
+    "destination": "r2://goldshore-logs/api/${DATE}.json"
+  }
+}

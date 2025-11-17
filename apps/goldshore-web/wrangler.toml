@@ -1,0 +1,28 @@
+name = "goldshore-web"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-10-05"
+
+[vars]
+CF_TEAM_DOMAIN = "goldshore"
+
+[env.dev]
+# Add dev-specific bindings and variables here
+
+[env.preview]
+# Add preview-specific bindings and variables here
+
+[env.prod]
+# Add prod-specific bindings and variables here
+
+[[d1_databases]]
+binding = "DB"
+database_name = "goldshore_cms"
+database_id = "your-d1-database-id"
+
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "assets"
+
+[[kv_namespaces]]
+binding = "SITE_KV"
+id = "your-kv-namespace-id"
