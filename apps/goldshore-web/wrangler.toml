@@ -1,28 +1,25 @@
+# Cloudflare Pages configuration for the GoldShore web app.
 name = "goldshore-web"
 pages_build_output_dir = "dist"
 compatibility_date = "2025-10-05"
 
+[build]
+command = "pnpm run build"
+
 [vars]
-CF_TEAM_DOMAIN = "goldshore"
+APP_NAME = "GoldShore"
+PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
+PRODUCTION_ASSETS = "https://goldshore-org.pages.dev"
+PREVIEW_ASSETS = "https://goldshore-org-preview.pages.dev"
+DEV_ASSETS = "https://goldshore-org-dev.pages.dev"
+GPT_ALLOWED_ORIGINS = "https://goldshore.org, https://www.goldshore.org, https://preview.goldshore.org, https://dev.goldshore.org, https://trade.goldshore.org"
 
-[env.dev]
-# Add dev-specific bindings and variables here
+# Secrets such as FORMSPREE_ENDPOINT, TURNSTILE_SECRET, OPENAI_API_KEY, and
+# GPT_SHARED_SECRET (or legacy GPT_PROXY_SECRET) are provided via
+# `wrangler secret put …` or `.dev.vars` in local development.
 
-[env.preview]
-# Add preview-specific bindings and variables here
-
-[env.prod]
-# Add prod-specific bindings and variables here
-
-[[d1_databases]]
-binding = "DB"
-database_name = "goldshore_cms"
-database_id = "your-d1-database-id"
-
-[[r2_buckets]]
-binding = "ASSETS"
-bucket_name = "assets"
-
-[[kv_namespaces]]
-binding = "SITE_KV"
-id = "your-kv-namespace-id"
+[env.production.vars]
+ASSETS_ORIGIN = "https://goldshore.org"
+CF_ACCESS_AUD = "3d5916af31a595ca00d8b1ab0157361a953779d939d9df2f63b1802b87a0248e"
+CF_ACCESS_ISS = "https://rmarston.cloudflareaccess.com"
+CF_ACCESS_JWKS_URL = "https://rmarston.cloudflareaccess.com/cdn-cgi/access/certs"

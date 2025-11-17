@@ -5,6 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev src/index.ts",
-    "deploy": "wrangler deploy src/index.ts"
+    "deploy": "wrangler deploy src/index.ts",
+    "clean": "rm -rf dist .turbo"
   }
 }

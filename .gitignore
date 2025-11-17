@@ -30,3 +30,10 @@ apps/web/dist/
 .wrangler/
 .turbo/
 coverage/
+
+# Universal build outputs
+/dist/
+*.tsbuildinfo
+
+# Environment variables
+.env

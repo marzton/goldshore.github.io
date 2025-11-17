@@ -3,7 +3,7 @@ import cloudflare from '@astrojs/cloudflare';
 
 export default defineConfig({
   output: 'server',
-  adapter: cloudflare({ imageService: 'passthrough' }),
+  adapter: cloudflare({ imageService: 'passthrough', mode: 'directory' }),
   vite: {
     build: { assetsInlineLimit: 0 },
     ssr: { target: 'webworker' },

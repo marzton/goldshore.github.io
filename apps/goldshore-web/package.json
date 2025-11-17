@@ -6,7 +6,8 @@
   "scripts": {
     "build": "astro build",
     "dev": "astro dev",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "clean": "rm -rf dist .astro .turbo"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^11.0.0",

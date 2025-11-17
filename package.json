@@ -13,6 +13,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "deploy": "turbo run deploy",
+    "clean": "turbo run clean",
     "dev:api": "wrangler dev --config apps/goldshore-api/wrangler.toml",
     "build:api": "wrangler build --config apps/goldshore-api/wrangler.toml",
     "deploy:api": "wrangler deploy --config apps/goldshore-api/wrangler.toml"
