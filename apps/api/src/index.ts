@@ -152,6 +152,9 @@ const router: Record<string, Partial<Record<string, RouteHandler>>> = {
       if (!limits) {
         return tools.respond({ ok: true, message: "No risk limits configured" });
       }
+      if (toBoolean((limits as Record<string, any>).killswitch)) {
+        return tools.respond({ ok: false, error: "KILL_SWITCH_ACTIVE" });
+      }
       if (typeof order.notional === "number" && limits.max_notional !== undefined && order.notional > limits.max_notional) {
         return tools.respond({ ok: false, error: "NOTIONAL_EXCEEDS_LIMIT" });
       }
@@ -615,10 +618,19 @@ async function deleteRiskConfig({ env, params, tools }: RouteContext) {
 
 async function getActiveRiskLimits(env: Env) {
   await ensureTable(env, "risk_configs");
-  const record = await env.DB.prepare(
+  const active = await env.DB.prepare(
     "SELECT * FROM risk_configs WHERE is_published = 1 ORDER BY published_at DESC LIMIT 1"
   ).first();
-  return record ? parseLimits(record.limits) : null;
+  if (active) {
+    return parseLimits(active.limits);
+  }
+
+  // When the kill switch is triggered all configs are unpublished.
+  // Fall back to the most recent config that explicitly has the flag enabled.
+  const killSwitchRecord = await env.DB.prepare(
+    "SELECT limits FROM risk_configs WHERE json_extract(COALESCE(NULLIF(limits, ''), '{}'), '$.killswitch') = 1 ORDER BY updated_at DESC LIMIT 1"
+  ).first();
+  return killSwitchRecord ? parseLimits(killSwitchRecord.limits) : null;
 }
 
 async function ensureTable(env: Env, table: keyof typeof ensureTables) {
