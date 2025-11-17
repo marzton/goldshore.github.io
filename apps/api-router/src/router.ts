@@ -84,11 +84,22 @@ const applyCorsHeaders = (headers: Headers, allowedOrigin: string | null) => {
   return headers;
 };
 
+const SENSITIVE_RESPONSE_KEYS = new Set(['stack', 'stacktrace', 'stack_trace']);
+
+const safeStringify = (value: unknown) =>
+  JSON.stringify(value, (key, val) => {
+    if (typeof key === 'string' && SENSITIVE_RESPONSE_KEYS.has(key.toLowerCase())) {
+      return undefined;
+    }
+
+    return val;
+  });
+
 const jsonResponse = (body: unknown, init: ResponseInit = {}, allowedOrigin: string | null) => {
   const headers = applyCorsHeaders(new Headers(init.headers), allowedOrigin);
   headers.set('content-type', 'application/json');
 
-  return new Response(JSON.stringify(body), {
+  return new Response(safeStringify(body), {
     ...init,
     headers,
   });
