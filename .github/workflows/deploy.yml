@@ -31,6 +31,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Trust Cloudflare Access certificate
+        run: |
+          curl -fsSL https://goldshore.cloudflareaccess.com/cdn-cgi/access/certs -o "$RUNNER_TEMP/cf-access.pem"
+          npm config set cafile "$RUNNER_TEMP/cf-access.pem"
+          echo "NODE_EXTRA_CA_CERTS=$RUNNER_TEMP/cf-access.pem" >> "$GITHUB_ENV"
+
       - name: Install workspace dependencies
         run: npm install --include-workspace-root --workspaces
 
