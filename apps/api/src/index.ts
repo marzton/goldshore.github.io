@@ -148,6 +148,10 @@ const router: Record<string, Partial<Record<string, RouteHandler>>> = {
   "/v1/risk/check": {
     POST: async ({ req, env, tools }) => {
       const order = await req.json();
+      const killSwitchActive = await isRiskKillSwitchActive(env);
+      if (killSwitchActive) {
+        return tools.respond({ ok: false, error: "RISK_KILL_SWITCH_ACTIVE" }, 423);
+      }
       const limits = await getActiveRiskLimits(env);
       if (!limits) {
         return tools.respond({ ok: true, message: "No risk limits configured" });
@@ -631,6 +635,21 @@ async function getActiveRiskLimits(env: Env) {
     "SELECT limits FROM risk_configs WHERE json_extract(COALESCE(NULLIF(limits, ''), '{}'), '$.killswitch') = 1 ORDER BY updated_at DESC LIMIT 1"
   ).first();
   return killSwitchRecord ? parseLimits(killSwitchRecord.limits) : null;
+  if (record) {
+    return parseLimits(record.limits);
+  }
+  const killSwitchRecord = await env.DB.prepare(
+    "SELECT * FROM risk_configs WHERE json_extract(COALESCE(NULLIF(limits, ''), '{}'), '$.killswitch') = 1 ORDER BY updated_at DESC LIMIT 1"
+  ).first();
+  return killSwitchRecord ? parseLimits(killSwitchRecord.limits) : null;
+}
+
+async function isRiskKillSwitchActive(env: Env) {
+  await ensureTable(env, "risk_configs");
+  const record = await env.DB.prepare(
+    "SELECT 1 as active FROM risk_configs WHERE json_extract(COALESCE(NULLIF(limits, ''), '{}'), '$.killswitch') = 1 LIMIT 1"
+  ).first();
+  return Boolean(record);
 }
 
 async function ensureTable(env: Env, table: keyof typeof ensureTables) {
