@@ -28,12 +28,13 @@ interface Jwks {
   keys: Jwk[];
 }
 
-function base64UrlToUint8Array(segment: string): Uint8Array {
+function base64UrlToUint8Array(segment: string): Uint8Array<ArrayBuffer> {
   const normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
   const padding = normalized.length % 4;
   const padded = normalized + (padding === 0 ? "" : "=".repeat(4 - padding));
   const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
+  const buffer = new ArrayBuffer(binary.length);
+  const bytes = new Uint8Array(buffer);
   for (let i = 0; i < binary.length; i += 1) {
     bytes[i] = binary.charCodeAt(i);
   }
