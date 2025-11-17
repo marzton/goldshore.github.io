@@ -152,6 +152,9 @@ const router: Record<string, Partial<Record<string, RouteHandler>>> = {
       if (!limits) {
         return tools.respond({ ok: true, message: "No risk limits configured" });
       }
+      if (limits.killswitch) {
+        return tools.respond({ ok: false, error: "KILL_SWITCH_ACTIVE" }, 403);
+      }
       if (typeof order.notional === "number" && limits.max_notional !== undefined && order.notional > limits.max_notional) {
         return tools.respond({ ok: false, error: "NOTIONAL_EXCEEDS_LIMIT" });
       }
@@ -618,7 +621,13 @@ async function getActiveRiskLimits(env: Env) {
   const record = await env.DB.prepare(
     "SELECT * FROM risk_configs WHERE is_published = 1 ORDER BY published_at DESC LIMIT 1"
   ).first();
-  return record ? parseLimits(record.limits) : null;
+  if (record) {
+    return parseLimits(record.limits);
+  }
+  const killSwitchRecord = await env.DB.prepare(
+    "SELECT * FROM risk_configs WHERE json_extract(COALESCE(NULLIF(limits, ''), '{}'), '$.killswitch') = 1 ORDER BY updated_at DESC LIMIT 1"
+  ).first();
+  return killSwitchRecord ? parseLimits(killSwitchRecord.limits) : null;
 }
 
 async function ensureTable(env: Env, table: keyof typeof ensureTables) {
