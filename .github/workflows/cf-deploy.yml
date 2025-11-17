@@ -30,6 +30,28 @@ jobs:
           node-version: '22'
       - run: npm install --no-package-lock
 
+      - name: Preflight Cloudflare credentials
+        id: cf-preflight
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for var in CF_API_TOKEN CF_ACCOUNT_ID; do
+            if [[ -z "${!var:-}" ]]; then
+              missing+=("$var")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "cf_ready=false" >>"$GITHUB_OUTPUT"
+            echo "::warning::Skipping Cloudflare deploy. Missing variables: ${missing[*]}"
+            exit 0
+          fi
+
+          echo "cf_ready=true" >>"$GITHUB_OUTPUT"
+
       - name: Build admin (conditional)
         if: contains(steps.diff.outputs.changed, 'apps/admin/')
         run: npm run build --workspace=@goldshore/admin || true
@@ -38,9 +60,51 @@ jobs:
         if: contains(steps.diff.outputs.changed, 'apps/web/')
         run: npm run build --workspace=@goldshore/web || true
 
-      - name: Orchestrate Cloudflare (stub — replace with your infra/cf/deploy.ts if present)
-        run: echo "Add infra/cf/deploy.ts to perform API-driven deploys or rely on CF Pages/Workers native triggers."
+      - name: Ensure web build output exists
+        run: |
+          if [[ ! -d apps/web/dist ]]; then
+            npm run build --workspace=@goldshore/web
+          fi
+
+      - name: Sync API worker secrets
+        if: steps.cf-preflight.outputs.cf_ready == 'true'
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          GITHUB_WEBHOOK_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOLDSHORE_JWT_SECRET: ${{ secrets.GOLDSHORE_JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          declare -A worker_secrets=(
+            [GITHUB_WEBHOOK_SECRET]="${GITHUB_WEBHOOK_SECRET:-}"
+            [GITHUB_APP_PRIVATE_KEY]="${GITHUB_APP_PRIVATE_KEY:-}"
+            [OPENAI_API_KEY]="${OPENAI_API_KEY:-}"
+            [GOLDSHORE_JWT_SECRET]="${GOLDSHORE_JWT_SECRET:-}"
+          )
+
+          for name in "${!worker_secrets[@]}"; do
+            value="${worker_secrets[$name]}"
+            if [[ -z "${value}" ]]; then
+              echo "::warning::Skipping ${name}; no value configured."
+              continue
+            fi
+            printf '%s' "${value}" | npx wrangler secret put --config apps/api-worker/wrangler.toml "${name}" --quiet
+          done
+
+      - name: Deploy API Worker
+        if: steps.cf-preflight.outputs.cf_ready == 'true'
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npm run deploy:api
+
+      - name: Deploy Cloudflare Pages site
+        if: steps.cf-preflight.outputs.cf_ready == 'true'
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler pages deploy apps/web/dist --project-name goldshore --branch main
