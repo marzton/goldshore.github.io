@@ -1,5 +1,13 @@
 import type { ExportedHandler } from '@cloudflare/workers-types';
 
+// The GPT handler lives in the legacy worker source tree and is shared with the
+// Pages deployment. Importing it directly lets us keep the routing logic in the
+// new worker entrypoint while preserving the existing functionality described
+// in the README.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - the handler is authored in plain JS and has no type defs.
+import gptHandler from '../../../src/gpt-handler.js';
+
 type Env = {
   APP_NAME: string;
   PRODUCTION_ASSETS?: string;
@@ -25,8 +33,13 @@ const cachePolicy = (pathname: string): string =>
     : 'no-store';
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname.startsWith('/api/gpt')) {
+      return gptHandler.fetch(request, env, ctx);
+    }
+
     const origin = pickOrigin(url.hostname, env);
     const upstream = new URL(request.url.replace(url.origin, origin));
 
