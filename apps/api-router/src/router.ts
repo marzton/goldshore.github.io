@@ -107,17 +107,31 @@ const resolveTarget = (url: URL, env: Env): Target => {
   };
 };
 
-const buildCorsHeaders = (origin: string): Headers => {
-const pickOrigin = (host: string, env: Env): string => {
-  if (host.startsWith('preview.')) {
-    return env.PREVIEW_ASSETS ?? 'https://goldshore-org-preview.pages.dev';
+const isAllowedOrigin = (origin: URL): boolean => {
+  if (origin.hostname === 'goldshore.org' || origin.hostname === 'localhost') {
+    return true;
+  }
+  if (origin.hostname.endsWith('.goldshore.org')) {
+    return true;
+  }
+  if (origin.hostname === 'goldshore-org.pages.dev' || origin.hostname.endsWith('.goldshore-org.pages.dev')) {
+    return true;
+  }
+  return false;
+};
+
+const resolveCorsOrigin = (req: Request): string | null => {
+  const headerOrigin = req.headers.get('origin');
+  if (!headerOrigin || headerOrigin === 'null') {
+    return null;
   }
 
-  if (host.startsWith('dev.')) {
-    return env.DEV_ASSETS ?? 'https://goldshore-org-dev.pages.dev';
+  try {
+    const parsedOrigin = new URL(headerOrigin);
+    return isAllowedOrigin(parsedOrigin) ? parsedOrigin.origin : null;
+  } catch {
+    return null;
   }
-
-  return env.PRODUCTION_ASSETS ?? 'https://goldshore-org.pages.dev';
 };
 
 const buildCorsHeaders = (origin: string | null): Headers => {
@@ -140,69 +154,36 @@ const cachePolicy = (pathname: string, kind: TargetKind): string => {
   return /\.(?:js|css|png|jpg|jpeg|webp|avif|svg|woff2?)$/i.test(pathname)
     ? 'public, max-age=31536000, immutable'
     : 'public, s-maxage=600, stale-while-revalidate=86400';
-const isAllowedOrigin = (origin: URL): boolean => {
-  if (origin.hostname === 'goldshore.org' || origin.hostname === 'localhost') {
-    return true;
-  }
-
-  if (origin.hostname.endsWith('.goldshore.org')) {
-    return true;
-  }
-
-  if (origin.hostname === 'goldshore-org.pages.dev' || origin.hostname.endsWith('.goldshore-org.pages.dev')) {
-    return true;
-  }
-
-  return false;
 };
 
-const resolveCorsOrigin = (req: Request): string | null => {
-  const headerOrigin = req.headers.get('origin');
-  if (!headerOrigin || headerOrigin === 'null') {
-    return null;
+const rewriteUpstreamPath = (upstream: URL, prefix: string) => {
+  if (upstream.pathname === prefix) {
+    upstream.pathname = '/';
+    return;
   }
-
-  try {
-    const parsedOrigin = new URL(headerOrigin);
-    return isAllowedOrigin(parsedOrigin) ? parsedOrigin.origin : null;
-  } catch {
-    return null;
+  if (upstream.pathname.startsWith(`${prefix}/`)) {
+    upstream.pathname = upstream.pathname.slice(prefix.length) || '/';
   }
 };
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env) {
     const url = new URL(request.url);
     const target = resolveTarget(url, env);
 
-    const corsOrigin = request.headers.get('origin') ?? `${url.protocol}//${url.host}`;
-    const corsHeaders = target.kind === 'api' ? null : buildCorsHeaders(corsOrigin);
-
-    if (request.method === 'OPTIONS' && corsHeaders) {
-      const cors = new Headers(corsHeaders);
-
-    const corsOrigin = resolveCorsOrigin(req);
-
-    const fallbackOrigin = `${url.protocol}//${url.host}`;
-    const requestOrigin = getCorsOrigin(req, fallbackOrigin);
-
-    if (req.method === 'OPTIONS') {
-      const cors = buildCorsHeaders(corsOrigin);
-      cors.set('content-length', '0');
-      return new Response(null, { status: 204, headers: cors });
-    }
-
     const upstream = new URL(request.url.replace(url.origin, target.origin));
     if (target.stripPathPrefix) {
-      const prefix = target.stripPathPrefix;
-      if (upstream.pathname === prefix) {
-        upstream.pathname = '/';
-      } else if (upstream.pathname.startsWith(`${prefix}/`)) {
-        upstream.pathname = upstream.pathname.slice(prefix.length) || '/';
-      }
+      rewriteUpstreamPath(upstream, target.stripPathPrefix);
     }
-    const origin = pickOrigin(url.hostname, env);
-    const upstream = new URL(request.url.replace(url.origin, origin));
+
+    const fallbackOrigin = `${url.protocol}//${url.host}`;
+    const corsOrigin = target.kind === 'api' ? null : resolveCorsOrigin(request) ?? fallbackOrigin;
+
+    if (request.method === 'OPTIONS' && corsOrigin) {
+      const headers = buildCorsHeaders(corsOrigin);
+      headers.set('content-length', '0');
+      return new Response(null, { status: 204, headers });
+    }
 
     const headers = new Headers(request.headers);
     headers.delete('host');
@@ -218,21 +199,11 @@ export default {
 
     const outgoing = new Headers(response.headers);
     outgoing.set('x-served-by', env.APP_NAME);
-    outgoing.set('cache-control', cachePolicy(url.pathname, target.kind));
+    outgoing.set('cache-control', cachePolicy(upstream.pathname, target.kind));
 
-    if (corsHeaders) {
-      corsHeaders.forEach((value, key) => outgoing.set(key, value));
+    if (corsOrigin) {
+      buildCorsHeaders(corsOrigin).forEach((value, key) => outgoing.set(key, value));
     }
-
-    const responseHeaders = new Headers(proxiedResponse.headers);
-    responseHeaders.set('x-served-by', env.APP_NAME);
-    const cors = buildCorsHeaders(corsOrigin);
-    cors.forEach((value, key) => responseHeaders.set(key, value));
-
-    const outgoing = new Headers(response.headers);
-    outgoing.set('x-served-by', env.APP_NAME);
-    outgoing.set('cache-control', cachePolicy(url.pathname));
-    cors.forEach((value, key) => outgoing.set(key, value));
 
     return new Response(response.body, {
       status: response.status,
