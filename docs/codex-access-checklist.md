@@ -95,14 +95,16 @@ Verify the following files exist:
 ```
 infra/
   cf/config.yaml
-  cron/config.yaml
   codex/limiter.config.json
   codex/limiter.schema.json
 .github/workflows/
-  agent-cron.yml
   cf-deploy.yml
   codex-budget-watch.yml
 ```
+
+> ℹ️  The historical `agent-cron.yml` workflow (and the accompanying cron config) intentionally remain absent to keep Codex from
+> polling the repository and burning through the automation budget. Avoid re-adding those files unless the budget owners approve
+> a new polling strategy.
 
 `infra/codex/limiter.config.json` encodes the agreed budgets and the follow-up actions:
 
