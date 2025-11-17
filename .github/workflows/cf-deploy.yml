@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  deploy-api:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -55,8 +55,8 @@ jobs:
           KV_CACHE_PROD: ${{ secrets.KV_CACHE_PROD || vars.KV_CACHE_PROD }}
         run: |
           set -euo pipefail
-          template="apps/api-worker/wrangler.toml"
-          rendered="apps/api-worker/wrangler.ci.toml"
+          template="apps/api/wrangler.toml"
+          rendered="apps/api/wrangler.ci.toml"
           subs='$KV_SESSIONS_PROD $KV_SESSIONS_PREVIEW $KV_SESSIONS_DEV $KV_CACHE_PROD'
 
           for var in KV_SESSIONS_PROD KV_SESSIONS_PREVIEW KV_SESSIONS_DEV KV_CACHE_PROD; do
@@ -81,7 +81,7 @@ jobs:
           GITHUB_WEBHOOK_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
         run: |
           set -euo pipefail
-          config=${WRANGLER_CONFIG:-apps/api-worker/wrangler.toml}
+          config=${WRANGLER_CONFIG:-apps/api/wrangler.toml}
           secrets=(
             GOLDSHORE_JWT_SECRET
             GITHUB_APP_ID
@@ -105,5 +105,61 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || vars.CF_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          config=${WRANGLER_CONFIG:-apps/api-worker/wrangler.toml}
+          config=${WRANGLER_CONFIG:-apps/api/wrangler.toml}
           npx wrangler deploy --config "$config" --env production
+
+  deploy-web:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: [deploy-api]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build --filter=@goldshore/web
+
+      - name: Deploy web app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || vars.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler pages deploy apps/web/dist --project-name=goldshore-web --branch=main
+
+  deploy-admin:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: [deploy-api]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build admin app
+        run: npm run build --filter=@goldshore/admin
+
+      - name: Deploy admin app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || vars.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler pages deploy apps/admin/dist --project-name=goldshore-admin --branch=main
