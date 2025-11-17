@@ -6,10 +6,11 @@ export interface Env {
 type JsonValue = Record<string, any> | null;
 
 const cors = (req: Request, origins: string) => {
-  const o = new URL(req.url).origin;
-  const allowed = origins.split(",").map(s=>s.trim());
+  const allowed = origins.split(",").map(s => s.trim()).filter(Boolean);
+  const requestOrigin = req.headers.get("Origin") || "";
   const hdr = {
-    "Access-Control-Allow-Origin": allowed.includes(o) ? o : allowed[0] || "*",
+    "Access-Control-Allow-Origin":
+      (requestOrigin && allowed.includes(requestOrigin)) ? requestOrigin : (allowed[0] || "*"),
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "content-type,authorization,cf-access-jwt-assertion",
   };
