@@ -31,9 +31,9 @@ interface RouteContext {
 type RouteHandler = (ctx: RouteContext) => Promise<Response | JsonValue | Record<string, any>> | Response | JsonValue | Record<string, any>;
 
 const cors = (req: Request, origins: string) => {
-  const o = new URL(req.url).origin;
+  const headerOrigin = req.headers.get("Origin")?.trim() || "";
   const allowed = origins.split(",").map(s => s.trim()).filter(Boolean);
-  const origin = allowed.includes(o) ? o : allowed[0] || "*";
+  const origin = headerOrigin && allowed.includes(headerOrigin) ? headerOrigin : allowed[0] || "*";
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
