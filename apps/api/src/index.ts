@@ -28,11 +28,6 @@ interface RouteContext {
   tools: RouteTools;
 }
 
-type RouteHandlerResult = Response | JsonValue | Record<string, any>;
-
-type RouteHandler = (
-  ctx: RouteContext
-) => Promise<RouteHandlerResult> | RouteHandlerResult;
 type HandlerResult = Response | JsonValue | Record<string, any>;
 
 type RouteHandler = (context: RouteContext) => Promise<HandlerResult> | HandlerResult;
@@ -64,7 +59,6 @@ const jsonResponse = (
   return new Response(JSON.stringify(body), { status, headers: merged });
 };
 
-const router: Router = {
 const createRouter = (): Router => ({
   "/v1/health": {
     GET: async ({ tools }) => tools.respond({ ok: true, ts: Date.now() }),
@@ -166,7 +160,9 @@ const createRouter = (): Router => ({
       return tools.respond({ ok: true, message: "Kill switch engaged" });
     },
   },
-};
+});
+
+const router = createRouter();
 
 function matchRoute(pattern: string, pathname: string): RouteParams | null {
   const paramNames: string[] = [];
@@ -188,8 +184,6 @@ function matchRoute(pattern: string, pathname: string): RouteParams | null {
   });
   return params;
 }
-
-const router = createRouter();
 
 export default {
   async fetch(req: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -213,7 +207,6 @@ export default {
 
     if (req.method === "OPTIONS") {
       return new Response(null, { headers: applyCors(corsHeaders) });
-      return new Response(null, { headers: corsHeaders });
     }
 
     const url = new URL(req.url);
@@ -223,22 +216,6 @@ export default {
     for (const [pattern, handlers] of Object.entries(router)) {
       const params = matchRoute(pattern, path);
       if (!params) continue;
-    for (const route in router) {
-      const pattern = new RegExp(`^${route.replace(/:\w+/g, "([^/]+)")}$`);
-      const match = path.match(pattern);
-      if (!match) {
-        continue;
-      }
-
-      const params: RouteParams = {};
-      const paramNames = route.match(/:(\w+)/g) || [];
-      paramNames.forEach((name, index) => {
-        const key = name.substring(1);
-        const value = match[index + 1];
-        if (value !== undefined) {
-          params[key] = decodeURIComponent(value);
-        }
-      });
 
       const handler = handlers?.[method];
       if (!handler) {
@@ -250,8 +227,6 @@ export default {
         return result;
       }
       return tools.respond(result ?? { ok: true });
-
-      return tools.respond((result ?? { ok: true }) as JsonValue | Record<string, any>);
     }
 
     return tools.respond({ ok: false, error: "NOT_FOUND" }, 404);
@@ -263,6 +238,85 @@ export default {
     }
   },
 };
+
+export class SessionManager {
+  private storage: DurableObjectStorage;
+
+  constructor(state: DurableObjectState, _env: Env) {
+    this.storage = state.storage;
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const method = request.method.toUpperCase();
+    if (method === "GET") {
+      const session = await this.storage.get<JsonValue>("session");
+      return jsonResponse({ ok: true, data: session ?? null });
+    }
+
+    if (["POST", "PUT", "PATCH"].includes(method)) {
+      const payload = await request.json().catch(() => null);
+      if (!payload || typeof payload !== "object") {
+        return jsonResponse({ ok: false, error: "INVALID_SESSION" }, 400);
+      }
+      await this.storage.put("session", payload);
+      return jsonResponse({ ok: true, data: payload });
+    }
+
+    if (method === "DELETE") {
+      await this.storage.delete("session");
+      return jsonResponse({ ok: true, data: null });
+    }
+
+    return jsonResponse({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+  }
+}
+
+type FeedEntry = {
+  id: string;
+  ts: number;
+  data: Record<string, any>;
+};
+
+const FEED_STORAGE_KEY = "feed_entries";
+
+export class FeedManager {
+  private storage: DurableObjectStorage;
+
+  constructor(state: DurableObjectState, _env: Env) {
+    this.storage = state.storage;
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const method = request.method.toUpperCase();
+    if (method === "GET") {
+      const entries = (await this.storage.get<FeedEntry[]>(FEED_STORAGE_KEY)) ?? [];
+      return jsonResponse({ ok: true, data: entries });
+    }
+
+    if (method === "POST") {
+      const payload = await request.json().catch(() => null);
+      if (!payload || typeof payload !== "object") {
+        return jsonResponse({ ok: false, error: "INVALID_ENTRY" }, 400);
+      }
+      const entry: FeedEntry = {
+        id: typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}`,
+        ts: Date.now(),
+        data: payload as Record<string, any>,
+      };
+      const entries = (await this.storage.get<FeedEntry[]>(FEED_STORAGE_KEY)) ?? [];
+      entries.unshift(entry);
+      await this.storage.put(FEED_STORAGE_KEY, entries.slice(0, 100));
+      return jsonResponse({ ok: true, data: entry }, 201);
+    }
+
+    if (method === "DELETE") {
+      await this.storage.delete(FEED_STORAGE_KEY);
+      return jsonResponse({ ok: true });
+    }
+
+    return jsonResponse({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+  }
+}
 
 async function listCustomers({ env, tools }: RouteContext) {
   await ensureTable(env, "customers");
