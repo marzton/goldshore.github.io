@@ -26,6 +26,8 @@
           { "name": "goldshore.org", "type": "CNAME" },
           { "name": "api.goldshore.org", "type": "CNAME" },
           { "name": "admin.goldshore.org", "type": "CNAME" },
+          { "name": "api-preview.goldshore.org", "type": "CNAME" },
+          { "name": "api-dev.goldshore.org", "type": "CNAME" },
           { "name": "_dmarc.goldshore.org", "type": "TXT", "contains": "v=DMARC1; p=reject" },
           { "name": "goldshore.org", "type": "TXT", "contains": "v=spf1" }
         ]

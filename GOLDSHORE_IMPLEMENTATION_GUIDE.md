@@ -166,24 +166,76 @@ or `npm run typecheck` to mirror the CI checks before opening a PR. 【F:package
 
 ## 9. SEO & ads loading
 
-- Every page defines unique titles/descriptions/canonicals through the shared layout. Extend with JSON-LD where needed.
-- When introducing ad units, wrap them in containers sized ahead of time and load scripts via `requestIdleCallback` to avoid CLS
-  (template snippet lives in this guide).
+This guide provides a comprehensive overview of the GoldShore repository, including its architecture, design principles, and deployment processes. It is intended to be a living document that evolves with the project.
 
-## 10. Cloudflare Pages environments
+## 1. Repository Overview
 
-- Pages origins are declared per environment in `wrangler.toml`; ensure the three Pages projects (`goldshore-org`, `-preview`,
-  `-dev`) stay in sync with GitHub deployments. 【F:wrangler.toml†L1-L23】
+The GoldShore repository is a monorepo built with npm workspaces. It contains the following applications and packages:
 
-## 11. Developer ergonomics
+-   **`apps/web`**: The main marketing website, built with Astro.
+-   **`apps/admin`**: The admin dashboard, also built with Astro and protected by Cloudflare Access.
+-   **`apps/api-worker`**: The Cloudflare Worker that serves as the API for the platform.
+-   **`packages/*`**: Shared packages and libraries used across the different applications.
 
 - Quickstart: `npm install`, `npm run dev`, and `npm run lint` before submitting PRs.
 - Use the workspace scripts (`build:api`, `deploy:api`, `agent:poll`) for manual Worker pushes and operational checks. 【F:package.json†L13-L21】
+## 2. Design and Build Process
 
-## 12. Launch checklist
+### 2.1. Layout and Component Planning
 
-1. Update or create content in `apps/web/src/pages`/`components` per sections 1–2.
-2. Drop new imagery into `public/images/raw` and run `npm run process-images`.
-3. Validate locally with `npm run lint`/`npm run typecheck` and spot-check Lighthouse.
-4. Push to a branch; GitHub Actions runs `cf-deploy.yml` on merge and the agent cron follows up with operational checks.
-5. Confirm DNS + Worker routes via the Cloudflare dashboard and lock `/admin` behind Access.
+-   New Astro pages should be created in `apps/web/src/pages` or `apps/admin/src/pages`.
+-   Reusable components should be placed in the `src/components` directory of the respective application.
+-   The design system is based on Tailwind CSS.
+
+### 2.2. Accessibility
+
+-   Ensure that all new components and pages are accessible.
+-   Use semantic HTML and ARIA attributes where appropriate.
+-   Test for accessibility using browser extensions and other tools.
+
+### 2.3. Responsive Design
+
+-   All pages and components should be responsive and work on a variety of screen sizes.
+-   Use Tailwind's responsive utility classes to create responsive layouts.
+
+## 3. Cloudflare Worker and Deployment
+
+### 3.1. Environment Separation and Routing
+
+-   The Cloudflare Worker (`apps/api-worker`) handles API requests.
+-   The `wrangler.worker.toml` file contains the configuration for the worker, including routes, bindings, and environment variables.
+-   The worker is deployed to `api.goldshore.org`.
+
+### 3.2. Build and Release Pipeline
+
+-   The CI/CD pipeline is defined in `.github/workflows/ci.yml`.
+-   When changes are pushed to the `main` branch, the pipeline automatically builds and deploys the applications to Cloudflare.
+-   The `web` and `admin` applications are deployed to Cloudflare Pages.
+-   The `api-worker` is deployed to Cloudflare Workers.
+
+### 3.3. Security and Observability
+
+-   The `admin` application is protected by Cloudflare Access.
+-   The API worker implements CORS and rate limiting.
+-   Observability is enabled for the worker, and logs and analytics are available in the Cloudflare dashboard.
+
+## 4. Asset and Image Management
+
+-   Source images are located in the `public/images/raw` directory of the `apps/web` application.
+-   A script is used to process and optimize the images before deployment.
+
+## 5. Domain Architecture and DNS
+
+-   **`goldshore.org`**: The main marketing website.
+-   **`admin.goldshore.org`**: The admin dashboard.
+-   **`api.goldshore.org`**: The API worker.
+-   DNS is managed in the Cloudflare dashboard. The `infra/scripts/enforce-dns.sh` script can be used to assert that the correct DNS records are in place.
+
+## 6. Development Workflow
+
+1.  Create a new branch for your changes.
+2.  Make your changes in the appropriate application or package.
+3.  Run `npm run lint` and `npm run typecheck` to check for errors.
+4.  Run `npm run build` to ensure that the applications build successfully.
+5.  Push your changes and open a pull request.
+6.  Once the pull request is approved and merged, the changes will be automatically deployed to production.

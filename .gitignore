@@ -8,9 +8,10 @@ vendor/
 .dev.vars
 # Generated package outputs
 packages/*/dist/
+apps/api-worker/dist/
+apps/api/dist/
 node_modules/
 **/node_modules/
-package-lock.json
 pnpm-lock.yaml
 apps/web/node_modules/
 apps/web/.astro/

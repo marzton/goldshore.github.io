@@ -3,7 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import { commentOnPR, createFixBranchAndPR, findOpenConflicts, openOpsIssue } from "./helpers/github";
-import { getDNSRecords, getPagesProjectBuildStatus, getWorkerBindings } from "./helpers/cloudflare";
+import {
+  bindPagesDomain,
+  fetchWorkerRoute,
+  getDNSRecords,
+  getPagesProjectBuildStatus,
+  getWorkerBindings,
+  probeHttpsHost,
+  triggerPagesDeployment
+} from "./helpers/cloudflare";
 
 
 type PagesRule = { repo: string; path: string };
@@ -17,6 +25,20 @@ type WorkerCheck = { type: "worker_health"; script: string; path: string };
 type DNSCheck = { type: "dns_records"; required: DNSRequirement[] };
 
 type CloudflareCheck = PagesCheck | WorkerCheck | DNSCheck;
+type PagesDomainTarget = { project: string; host: string; domains: string[] };
+
+type PagesDomainRecoveryCheck = { type: "pages_domain_recovery"; targets: PagesDomainTarget[] };
+
+type WorkerCheck = {
+  type: "worker_health";
+  script: string;
+  path: string;
+  domain_override?: string;
+};
+
+type DNSCheck = { type: "dns_records"; required: DNSRequirement[] };
+
+type CloudflareCheck = PagesCheck | WorkerCheck | DNSCheck | PagesDomainRecoveryCheck;
 
 function loadConfig() {
   const pJson = path.join(process.cwd(), "infra/cron/config.json");
@@ -31,6 +53,45 @@ const org: string = cfg.github.org;
 
 function log(...a: unknown[]) {
   console.log("[agent]", ...a);
+}
+
+function truncate(text: string, limit = 500) {
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit)}…`;
+}
+
+function formatBodyPreview(body: string) {
+  if (!body) return "\n\n_No response body_";
+  return `\n\n\`\`\`\n${truncate(body, 800)}\n\`\`\``;
+}
+
+async function getWorkerBindingsWarning(script: string) {
+  try {
+    const bindings = await getWorkerBindings(script);
+    if (!Array.isArray(bindings) || bindings.length === 0) {
+      return "Cloudflare API returned no bindings for this Worker. Verify wrangler configuration and deployment.";
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return `Unable to load Worker bindings: ${message}`;
+  }
+  return null;
+}
+
+async function openWorkerHealthIncident(script: string, routePath: string, detail: string) {
+  let body = detail;
+  const bindingsWarning = await getWorkerBindingsWarning(script);
+  if (bindingsWarning) {
+    body += `\n\nBindings warning: ${bindingsWarning}`;
+  }
+  log("Worker health incident", script, detail);
+  await openOpsIssue(
+    org,
+    "goldshore",
+    `Worker health check failed: ${script}`,
+    `Check path: \`${routePath}\`\n\n${body}`,
+    cfg.ai_agent.triage_labels
+  );
 }
 
 async function ensurePagesOutputDirRule() {
@@ -125,6 +186,179 @@ async function checkCloudflare() {
           `Worker missing bindings: ${check.script}`,
           `No bindings returned for Worker \`${check.script}\`. Verify wrangler.toml and deployment.`,
           cfg.ai_agent.triage_labels
+    if (check.type === "pages_domain_recovery") {
+      for (const target of check.targets) {
+        let initialError: string | null = null;
+        try {
+          const response = await probeHttpsHost(target.host);
+          if (!response.ok) {
+            const body = await response.text();
+            initialError = `Initial probe returned HTTP ${response.status}.${formatBodyPreview(body)}`;
+          } else {
+            continue;
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          initialError = `Initial probe failed: ${message}`;
+        }
+
+        const remediationSteps: string[] = [];
+        if (initialError) remediationSteps.push(initialError);
+        for (const domain of target.domains) {
+          try {
+            const res = await bindPagesDomain(target.project, domain);
+            remediationSteps.push(
+              `Rebound domain \`${domain}\` (status: ${res.status ?? "unknown"}).`
+            );
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            remediationSteps.push(`Failed to bind \`${domain}\`: ${message}`);
+          }
+        }
+
+        try {
+          const deployment = await triggerPagesDeployment(target.project);
+          remediationSteps.push(`Triggered deployment \`${deployment.id ?? "unknown"}\`.`);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          remediationSteps.push(`Failed to trigger deployment: ${message}`);
+        }
+
+        let recovered = false;
+        try {
+          const verification = await probeHttpsHost(target.host);
+          const verificationBody = await verification.text();
+          if (verification.ok) {
+            recovered = true;
+            remediationSteps.push("Post-remediation probe succeeded.");
+          } else {
+            remediationSteps.push(
+              `Post-remediation probe returned HTTP ${verification.status}.${formatBodyPreview(
+                verificationBody
+              )}`
+            );
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          remediationSteps.push(`Post-remediation probe failed: ${message}`);
+        }
+
+        if (recovered) {
+          log(`Recovered Pages domain ${target.host}`);
+        } else {
+          const details = remediationSteps.join("\n\n");
+          const domainSection = target.domains.length
+            ? `Domains:\n${target.domains.map(domain => `- \`${domain}\``).join("\n")}`
+            : "Domains: _none defined_";
+          await openOpsIssue(
+            org,
+            "goldshore",
+            `Pages domain recovery failed: ${target.host}`,
+            `Project: \`${target.project}\`\nHost: \`${target.host}\`\n\n${domainSection}\n\nRemediation log:\n\n${details}`,
+            cfg.ai_agent.triage_labels
+          );
+        }
+      }
+    }
+    if (check.type === "worker_health") {
+      try {
+        const { response, url } = await fetchWorkerRoute(
+          check.script,
+          check.path,
+          undefined,
+          check.domain_override
+        );
+        const bodyText = await response.text();
+        if (!response.ok) {
+          await openWorkerHealthIncident(
+            check.script,
+            check.path,
+            `Health endpoint \`${url}\` returned HTTP ${response.status}.${formatBodyPreview(bodyText)}`
+          );
+          continue;
+        }
+        if (!bodyText) {
+          await openWorkerHealthIncident(
+            check.script,
+            check.path,
+            `Health endpoint \`${url}\` returned an empty body. Expected JSON payload with \`{ ok: true }\`.`
+          );
+          continue;
+        }
+        let payload: unknown;
+        try {
+          payload = JSON.parse(bodyText);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          await openWorkerHealthIncident(
+            check.script,
+            check.path,
+            `Health endpoint \`${url}\` returned invalid JSON (${message}).${formatBodyPreview(bodyText)}`
+          );
+          continue;
+        }
+        if (!payload || typeof payload !== "object") {
+          await openWorkerHealthIncident(
+            check.script,
+            check.path,
+            `Health endpoint \`${url}\` returned a non-object payload.${formatBodyPreview(bodyText)}`
+          );
+          continue;
+        }
+        type WorkerHealthPayload = {
+          ok?: unknown;
+          failures?: unknown;
+          errors?: unknown;
+        } & Record<string, unknown>;
+        const health = payload as WorkerHealthPayload;
+        if (health.ok !== true) {
+          await openWorkerHealthIncident(
+            check.script,
+            check.path,
+            `Health endpoint \`${url}\` reported \`ok !== true\`.${formatBodyPreview(bodyText)}`
+          );
+          continue;
+        }
+        const normalizeMessages = (items: unknown[]): string[] =>
+          items
+            .map(item => {
+              if (typeof item === "string") return item;
+              if (item && typeof item === "object") {
+                const maybeMessage = (item as Record<string, unknown>).message;
+                if (typeof maybeMessage === "string") return maybeMessage;
+                try {
+                  return JSON.stringify(item);
+                } catch {
+                  return String(item);
+                }
+              }
+              return String(item);
+            })
+            .filter((msg): msg is string => Boolean(msg));
+        const failures = Array.isArray(health.failures) ? normalizeMessages(health.failures) : [];
+        if (failures.length > 0) {
+          await openWorkerHealthIncident(
+            check.script,
+            check.path,
+            `Health endpoint \`${url}\` reported failures:\n- ${failures.join("\n- ")}.${formatBodyPreview(bodyText)}`
+          );
+          continue;
+        }
+        const errors = Array.isArray(health.errors) ? normalizeMessages(health.errors) : [];
+        if (errors.length > 0) {
+          await openWorkerHealthIncident(
+            check.script,
+            check.path,
+            `Health endpoint \`${url}\` reported additional errors despite \`ok: true\`:\n- ${errors.join("\n- ")}.${formatBodyPreview(bodyText)}`
+          );
+          continue;
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await openWorkerHealthIncident(
+          check.script,
+          check.path,
+          `Failed to reach Worker health endpoint. Error: ${message}`
         );
       }
     }

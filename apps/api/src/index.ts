@@ -1,6 +1,16 @@
 export interface Env {
-  DB: D1Database; AGENT_PROMPT_KV: KVNamespace; JOBS_QUEUE: Queue; SNAP_R2: R2Bucket;
+  DB: D1Database;
+  AGENT_PROMPT_KV: KVNamespace;
+  JOBS_QUEUE: Queue;
+  SNAP_R2: R2Bucket;
   CORS_ORIGINS: string;
+  CONFIG_KV?: KVNamespace;
+  ENV_BUNDLE_JSON?: string;
+  GH_WEBHOOK_SECRET?: string;
+  GITHUB_DEFAULT_BRANCH?: string;
+  CLOUDFLARE_API_TOKEN?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARE_ZONE_ID?: string;
 }
 
 type JsonValue = Record<string, any> | null;
@@ -16,14 +26,45 @@ const cors = (req: Request, origins: string) => {
   return hdr;
 };
 
+const ensureWebhookEnv = (env: Env): GitHubWebhookEnv => {
+  const required: Array<[keyof GitHubWebhookEnv, string | undefined]> = [
+    ["GH_WEBHOOK_SECRET", env.GH_WEBHOOK_SECRET],
+    ["CLOUDFLARE_API_TOKEN", env.CLOUDFLARE_API_TOKEN],
+    ["CLOUDFLARE_ACCOUNT_ID", env.CLOUDFLARE_ACCOUNT_ID],
+    ["CLOUDFLARE_ZONE_ID", env.CLOUDFLARE_ZONE_ID],
+  ];
+
+  for (const [key, value] of required) {
+    if (!value) {
+      throw new Error(`Missing required environment binding: ${key}`);
+    }
+  }
+
+  return {
+    GH_WEBHOOK_SECRET: env.GH_WEBHOOK_SECRET!,
+    GITHUB_DEFAULT_BRANCH: env.GITHUB_DEFAULT_BRANCH,
+    CLOUDFLARE_API_TOKEN: env.CLOUDFLARE_API_TOKEN!,
+    CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID!,
+    CLOUDFLARE_ZONE_ID: env.CLOUDFLARE_ZONE_ID!,
+    CONFIG_KV: env.CONFIG_KV,
+    ENV_BUNDLE_JSON: env.ENV_BUNDLE_JSON,
+  };
+};
+
 import { createCustomer, getCustomer, updateCustomer, deleteCustomer, listCustomers } from "./customers";
 import { createSubscription, getSubscription, updateSubscription, deleteSubscription, listSubscriptions } from "./subscriptions";
 import { setRiskConfig, getRiskConfig, checkRisk, killSwitch } from "./risk";
 import { createCustomerSubscription, getCustomerSubscription, updateCustomerSubscription, deleteCustomerSubscription, listCustomerSubscriptions } from "./customer_subscriptions";
+import { handleGitHubWebhook, reconcileCloudflare } from "./webhooks/github";
+import type { GitHubWebhookEnv } from "./webhooks/github";
 
 const router = {
   "/v1/health": {
     GET: () => ({ ok: true, ts: Date.now() }),
+  },
+  "/webhook/github": {
+    POST: (req: Request, env: Env, _params: Record<string, string>, ctx: ExecutionContext) =>
+      handleGitHubWebhook(req, ensureWebhookEnv(env), ctx),
   },
   "/v1/whoami": {
     GET: (req: Request) => {
@@ -34,6 +75,7 @@ const router = {
   },
   "/v1/lead": {
     POST: async (req: Request, env: Env) => {
+      const headers = { "content-type": "application/json", ...cors(req, env.CORS_ORIGINS) };
       const ct = req.headers.get("content-type") || "";
       const body = ct.includes("application/json") ? await req.json() : Object.fromEntries((await req.formData()).entries());
       const email = (body.email||"").toString().trim();
@@ -49,39 +91,6 @@ const router = {
     GET: async (req: Request, env: Env) => {
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, symbol TEXT, qty REAL, side TEXT, ts TEXT DEFAULT CURRENT_TIMESTAMP)").run();
       const { results } = await env.DB.prepare("SELECT * FROM orders ORDER BY ts DESC LIMIT 50").all();
-      return jsonResponse({ ok: true, data: results }, 200, jsonHeaders);
-    }
-
-    const segments = url.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
-    if (segments[0] === "v1") {
-      const resource = segments[1];
-      const id = segments[2];
-
-      if (resource === "customers") {
-        return this.handleCustomers(req, env, jsonHeaders, corsHeaders, id);
-      }
-
-      if (resource === "subscriptions") {
-        return this.handleSubscriptions(req, env, jsonHeaders, corsHeaders, id);
-      }
-
-      if (resource === "customer_subscriptions") {
-        return this.handleCustomerSubscriptions(req, env, jsonHeaders, corsHeaders, id);
-      }
-
-      if (resource === "risk") {
-        const riskResource = segments[2];
-        if (riskResource === "limits" && req.method === "GET" && segments.length === 3) {
-          return this.handleRiskLimits(env, jsonHeaders);
-        }
-        if (riskResource === "config") {
-          const configId = segments[3];
-          return this.handleRiskConfig(req, env, jsonHeaders, corsHeaders, configId);
-        }
-      }
-    }
-
-    return jsonResponse({ ok: false, error: "NOT_FOUND" }, 404, jsonHeaders);
       return { ok: true, data: results };
     },
   },
@@ -174,6 +183,28 @@ const router = {
       return { ok: true, data: customerSubscriptions };
     },
   },
+  "/admin/reconcile/cloudflare": {
+    POST: async (req: Request, env: Env, _params: Record<string, string>, ctx: ExecutionContext) => {
+      const corsHeaders = { "content-type": "application/json", ...cors(req, env.CORS_ORIGINS) };
+      const email = req.headers.get("cf-access-authenticated-user-email");
+      if (!email) {
+        return new Response(JSON.stringify({ ok: false, error: "UNAUTHENTICATED" }), {
+          status: 401,
+          headers: corsHeaders,
+        });
+      }
+
+      try {
+        const result = await reconcileCloudflare(ensureWebhookEnv(env));
+        return new Response(JSON.stringify(result), { status: 200, headers: corsHeaders });
+      } catch (err) {
+        return new Response(JSON.stringify({ ok: false, error: "RECONCILE_FAILED" }), {
+          status: 500,
+          headers: corsHeaders,
+        });
+      }
+    },
+  },
   "/v1/customer_subscriptions/:id": {
     GET: async (req: Request, env: Env, params: { id: string }) => {
       const customerSubscription = await getCustomerSubscription(env.DB, params.id);
@@ -213,7 +244,7 @@ export default {
         });
 
         if (router[route][method]) {
-          const result = await router[route][method](req, env, params);
+          const result = await router[route][method](req, env, params, ctx);
           if (result instanceof Response) {
             return result;
           }
