@@ -21,54 +21,6 @@ GPT_ALLOWED_ORIGINS = "https://goldshore.org, https://www.goldshore.org, https:/
 # the apex domain. Avoid wildcards so API subdomains remain mapped to their dedicated
 # infrastructure rather than being intercepted by this router.
 [[env.production.routes]]
-pattern = "preview.goldshore.org/*"
-zone_name = "goldshore.org"
-script = "router-preview"
-priority = 10
-
-[[env.production.routes]]
-pattern = "dev.goldshore.org/*"
-zone_name = "goldshore.org"
-script = "router-dev"
-priority = 10
-
-[[env.production.routes]]
-pattern = "preview.gearswipe.com/*"
-zone_name = "gearswipe.com"
-script = "router-preview"
-priority = 10
-
-[[env.production.routes]]
-pattern = "dev.gearswipe.com/*"
-zone_name = "gearswipe.com"
-script = "router-dev"
-priority = 10
-
-[[env.production.routes]]
-pattern = "preview.armsway.com/*"
-zone_name = "armsway.com"
-script = "router-preview"
-priority = 10
-
-[[env.production.routes]]
-pattern = "dev.armsway.com/*"
-zone_name = "armsway.com"
-script = "router-dev"
-priority = 10
-
-[[env.production.routes]]
-pattern = "preview.banproof.com/*"
-zone_name = "banproof.com"
-script = "router-preview"
-priority = 10
-
-[[env.production.routes]]
-pattern = "dev.banproof.com/*"
-zone_name = "banproof.com"
-script = "router-dev"
-priority = 10
-
-[[env.production.routes]]
 pattern = "goldshore.org/*"
 zone_name = "goldshore.org"
 priority = 50
@@ -112,23 +64,49 @@ priority = 50
 ASSETS_ORIGIN = "https://goldshore-org.pages.dev"
 
 [env.preview]
-routes = [
-  { pattern = "preview.goldshore.org/*", zone_name = "goldshore.org" },
-  { pattern = "preview.gearswipe.com/*", zone_name = "gearswipe.com" },
-  { pattern = "preview.armsway.com/*", zone_name = "armsway.com" },
-  { pattern = "preview.banproof.com/*", zone_name = "banproof.com" }
-]
+[[env.preview.routes]]
+pattern = "preview.goldshore.org/*"
+zone_name = "goldshore.org"
+priority = 10
+
+[[env.preview.routes]]
+pattern = "preview.gearswipe.com/*"
+zone_name = "gearswipe.com"
+priority = 10
+
+[[env.preview.routes]]
+pattern = "preview.armsway.com/*"
+zone_name = "armsway.com"
+priority = 10
+
+[[env.preview.routes]]
+pattern = "preview.banproof.com/*"
+zone_name = "banproof.com"
+priority = 10
 
 [env.preview.vars]
 ASSETS_ORIGIN = "https://goldshore-org-preview.pages.dev"
 
 [env.dev]
-routes = [
-  { pattern = "dev.goldshore.org/*", zone_name = "goldshore.org" },
-  { pattern = "dev.gearswipe.com/*", zone_name = "gearswipe.com" },
-  { pattern = "dev.armsway.com/*", zone_name = "armsway.com" },
-  { pattern = "dev.banproof.com/*", zone_name = "banproof.com" }
-]
+[[env.dev.routes]]
+pattern = "dev.goldshore.org/*"
+zone_name = "goldshore.org"
+priority = 10
+
+[[env.dev.routes]]
+pattern = "dev.gearswipe.com/*"
+zone_name = "gearswipe.com"
+priority = 10
+
+[[env.dev.routes]]
+pattern = "dev.armsway.com/*"
+zone_name = "armsway.com"
+priority = 10
+
+[[env.dev.routes]]
+pattern = "dev.banproof.com/*"
+zone_name = "banproof.com"
+priority = 10
 
 [env.dev.vars]
 ASSETS_ORIGIN = "https://goldshore-org-dev.pages.dev"
