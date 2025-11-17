@@ -36,8 +36,17 @@ describe('auth', () => {
       json: () => Promise.resolve(mockJwks),
     });
 
+    const mockCryptoKey = {} as CryptoKey;
+    vi.spyOn(crypto.subtle, 'importKey').mockResolvedValue(mockCryptoKey);
     vi.spyOn(crypto.subtle, 'verify').mockResolvedValue(true);
 
-    await expect(verifyJwt(mockJwt, mockEnv)).resolves.not.toThrow();
+    await expect(verifyJwt(mockJwt, mockEnv)).resolves.toEqual({
+      aud: 'c1f82b41284988fadaf6ebfc3ba81e1489e55b633acdced561e8ecf20ac36381',
+      exp: 9999999999,
+      iat: 1516239022,
+      iss: 'https://auth.goldshore.org',
+      name: 'John Doe',
+      sub: '1234567890',
+    });
   });
 });
