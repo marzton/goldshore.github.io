@@ -158,8 +158,4 @@ const headerMenuModuleUrl = Astro.resolve("./header-menu.ts");
   </div>
 </header>
 
-<script type="module">
-  const { initHeaderMenu } = await import("{headerMenuModuleUrl}");
-
-  initHeaderMenu();
-</script>
+<script type="module" src={headerMenuModuleUrl}></script>
