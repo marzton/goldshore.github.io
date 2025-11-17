@@ -19,28 +19,91 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect changed paths
-        id: diff
-        run: |
-          git fetch origin main
-          echo "changed=$(git diff --name-only origin/main... | tr '\n' ',' )" >> $GITHUB_OUTPUT
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: npm install --no-package-lock
-
-      - name: Build admin (conditional)
-        if: contains(steps.diff.outputs.changed, 'apps/admin/')
-        run: npm run build --workspace=@goldshore/admin || true
-
-      - name: Build web (conditional)
-        if: contains(steps.diff.outputs.changed, 'apps/web/')
-        run: npm run build --workspace=@goldshore/web || true
-
-      - name: Orchestrate Cloudflare (stub — replace with your infra/cf/deploy.ts if present)
-        run: echo "Add infra/cf/deploy.ts to perform API-driven deploys or rely on CF Pages/Workers native triggers."
+      - name: Preflight Cloudflare credentials
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || vars.CF_ACCOUNT_ID }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID || vars.CF_ZONE_ID }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for var in CF_API_TOKEN CF_ACCOUNT_ID CF_ZONE_ID; do
+            if [[ -z "${!var:-}" ]]; then
+              missing+=("$var")
+            fi
+          done
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            printf '::error::Missing required secrets/variables: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Render Worker bindings
+        id: wrangler
+        env:
+          KV_SESSIONS_PROD: ${{ secrets.KV_SESSIONS_PROD || vars.KV_SESSIONS_PROD }}
+          KV_SESSIONS_PREVIEW: ${{ secrets.KV_SESSIONS_PREVIEW || vars.KV_SESSIONS_PREVIEW }}
+          KV_SESSIONS_DEV: ${{ secrets.KV_SESSIONS_DEV || vars.KV_SESSIONS_DEV }}
+          KV_CACHE_PROD: ${{ secrets.KV_CACHE_PROD || vars.KV_CACHE_PROD }}
+        run: |
+          set -euo pipefail
+          template="apps/api-worker/wrangler.toml"
+          rendered="apps/api-worker/wrangler.ci.toml"
+          subs='$KV_SESSIONS_PROD $KV_SESSIONS_PREVIEW $KV_SESSIONS_DEV $KV_CACHE_PROD'
+
+          for var in KV_SESSIONS_PROD KV_SESSIONS_PREVIEW KV_SESSIONS_DEV KV_CACHE_PROD; do
+            if [[ -z "${!var:-}" ]]; then
+              printf '::error file=%s::Missing binding id for %s\n' "$template" "$var"
+              exit 1
+            fi
+          done
+
+          envsubst "$subs" <"$template" >"$rendered"
+          echo "config=$rendered" >>"$GITHUB_OUTPUT"
+
+      - name: Sync Worker secrets (production)
+        env:
+          WRANGLER_CONFIG: ${{ steps.wrangler.outputs.config }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || vars.CF_ACCOUNT_ID }}
+          GOLDSHORE_JWT_SECRET: ${{ secrets.GOLDSHORE_JWT_SECRET }}
+          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY || secrets.GITHUB_PRIVATE_KEY }}
+          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+          GITHUB_WEBHOOK_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+        run: |
+          set -euo pipefail
+          config=${WRANGLER_CONFIG:-apps/api-worker/wrangler.toml}
+          secrets=(
+            GOLDSHORE_JWT_SECRET
+            GITHUB_APP_ID
+            GITHUB_APP_PRIVATE_KEY
+            GITHUB_APP_INSTALLATION_ID
+            GITHUB_WEBHOOK_SECRET
+          )
+          for name in "${secrets[@]}"; do
+            value="${!name:-}"
+            if [[ -z "$value" ]]; then
+              printf '::error::Missing secret %s\n' "$name"
+              exit 1
+            fi
+            printf '%s' "$value" | npx wrangler secret put "$name" --config "$config" --env production --name goldshore-api
+          done
+
+      - name: Deploy API worker
+        env:
+          WRANGLER_CONFIG: ${{ steps.wrangler.outputs.config }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || vars.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          config=${WRANGLER_CONFIG:-apps/api-worker/wrangler.toml}
+          npx wrangler deploy --config "$config" --env production
