@@ -7,12 +7,24 @@ type JsonValue = Record<string, any> | null;
 
 const cors = (req: Request, origins: string) => {
   const allowed = origins.split(",").map(s => s.trim()).filter(Boolean);
-  const requestOrigin = req.headers.get("Origin") || "";
+  const requestOrigin = req.headers.get("Origin");
+
+  let allowOrigin = "*";
+  if (allowed.length) {
+    if (allowed.includes("*")) {
+      allowOrigin = "*";
+    } else if (requestOrigin && allowed.includes(requestOrigin)) {
+      allowOrigin = requestOrigin;
+    } else {
+      allowOrigin = allowed[0];
+    }
+  }
+
   const hdr = {
-    "Access-Control-Allow-Origin":
-      (requestOrigin && allowed.includes(requestOrigin)) ? requestOrigin : (allowed[0] || "*"),
+    "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "content-type,authorization,cf-access-jwt-assertion",
+    "Vary": "Origin",
   };
   return hdr;
 };
