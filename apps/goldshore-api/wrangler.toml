@@ -5,7 +5,7 @@ workers_dev = false
 minify = true
 
 [[routes]]
-pattern = "api.goldshore.org/*"
+route = "api.goldshore.org/*"
 zone_name = "goldshore.org"
 
 [build]
