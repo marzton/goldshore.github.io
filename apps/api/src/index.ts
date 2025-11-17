@@ -301,7 +301,14 @@ async function updateCustomer({ req, env, params, tools }: RouteContext) {
   }
   fields.push("updated_at = CURRENT_TIMESTAMP");
   values.push(params.id);
-  await env.DB.prepare(`UPDATE customers SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  try {
+    await env.DB.prepare(`UPDATE customers SET ${fields.join(", ")} WHERE id = ?`)
+      .bind(...values)
+      .run();
+  } catch (error) {
+    console.warn("Failed to update customer", error);
+    return tools.respond({ ok: false, error: "CUSTOMER_CREATE_FAILED" }, 400);
+  }
   const record = await env.DB.prepare("SELECT * FROM customers WHERE id = ?").bind(params.id).first();
   if (!record) {
     return tools.respond({ ok: false, error: "NOT_FOUND" }, 404);
