@@ -6,6 +6,8 @@ export interface Env {
   JOBS_QUEUE: Queue;
   SNAP_R2: R2Bucket;
   CORS_ORIGINS: string;
+  FORMSPREE_ENDPOINT?: string;
+  TURNSTILE_SECRET?: string;
 }
 
 type JsonValue = Record<string, any> | null;
@@ -33,6 +35,10 @@ type HandlerResult = Response | JsonValue | Record<string, any>;
 type RouteHandler = (context: RouteContext) => Promise<HandlerResult> | HandlerResult;
 
 type Router = Record<string, Partial<Record<string, RouteHandler>>>;
+
+const EMAIL_REGEX =
+  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 const cors = (req: Request, origins: string) => {
   const o = new URL(req.url).origin;
@@ -78,12 +84,10 @@ const createRouter = (): Router => ({
         ? await req.json()
         : Object.fromEntries((await req.formData()).entries());
       const email = (payload.email || "").toString().trim();
-      const emailRegex =
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
       if (!email) {
         return tools.respond({ ok: false, error: "EMAIL_REQUIRED" }, 400);
       }
-      if (!emailRegex.test(email)) {
+      if (!EMAIL_REGEX.test(email)) {
         return tools.respond({ ok: false, error: "INVALID_EMAIL" }, 400);
       }
       await env.DB.prepare(
@@ -91,6 +95,9 @@ const createRouter = (): Router => ({
       ).bind(email).run();
       return tools.respond({ ok: true });
     },
+  },
+  "/contact": {
+    POST: submitContactRequest,
   },
   "/v1/orders": {
     GET: async ({ env, tools }) => {
@@ -229,6 +236,84 @@ async function listCustomers({ env, tools }: RouteContext) {
     "SELECT * FROM customers ORDER BY id DESC"
   ).all();
   return tools.respond({ ok: true, data: results });
+}
+
+async function submitContactRequest({ req, env, tools }: RouteContext) {
+  const formData = await req.formData();
+  const name = (formData.get("name") ?? "").toString().trim();
+  const email = (formData.get("email") ?? "").toString().trim();
+  const focus = (formData.get("focus") ?? "").toString().trim();
+  const message = (formData.get("message") ?? "").toString().trim();
+  const redirectTarget = sanitizeRedirectTarget(formData.get("_redirect"));
+  const turnstileToken = (formData.get("cf-turnstile-response") ?? "").toString().trim();
+
+  if (!name || !email || !focus || !message) {
+    return tools.respond({ ok: false, error: "MISSING_FIELDS" }, 400);
+  }
+
+  if (!EMAIL_REGEX.test(email)) {
+    return tools.respond({ ok: false, error: "INVALID_EMAIL" }, 400);
+  }
+
+  if (!turnstileToken) {
+    return tools.respond({ ok: false, error: "TURNSTILE_REQUIRED" }, 400);
+  }
+
+  if (!env.TURNSTILE_SECRET) {
+    return tools.respond({ ok: false, error: "TURNSTILE_NOT_CONFIGURED" }, 500);
+  }
+
+  const connectingIp = req.headers.get("cf-connecting-ip") || undefined;
+  const turnstilePassed = await verifyTurnstileResponse(
+    turnstileToken,
+    env.TURNSTILE_SECRET,
+    connectingIp
+  );
+
+  if (!turnstilePassed) {
+    return tools.respond({ ok: false, error: "TURNSTILE_FAILED" }, 400);
+  }
+
+  if (!env.FORMSPREE_ENDPOINT) {
+    return tools.respond({ ok: false, error: "CONTACT_DISABLED" }, 503);
+  }
+
+  const submission = {
+    name,
+    email,
+    focus,
+    message,
+    origin: "contact_form",
+    metadata: {
+      user_agent: req.headers.get("user-agent") || undefined,
+      referer: req.headers.get("referer") || undefined,
+    },
+  };
+
+  const response = await fetch(env.FORMSPREE_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify(submission),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    return tools.respond(
+      { ok: false, error: "CONTACT_SUBMISSION_FAILED", details: errorText.slice(0, 2000) },
+      502
+    );
+  }
+
+  const location = redirectTarget || "/contact#contact-success";
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: location,
+    },
+  });
 }
 
 async function createCustomer({ req, env, tools }: RouteContext) {
@@ -642,6 +727,30 @@ async function ensureRiskConfigsTable(env: Env) {
   ).run();
 }
 
+function sanitizeRedirectTarget(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    try {
+      const url = new URL(trimmed);
+      const path = url.pathname || "/";
+      return `${path}${url.search}${url.hash}`;
+    } catch (error) {
+      console.warn("Invalid redirect target", error);
+      return null;
+    }
+  }
+
+  return trimmed.startsWith("/") ? trimmed : null;
+}
+
 async function parseBody(req: Request): Promise<Record<string, any> | null> {
   const method = req.method.toUpperCase();
   if (method === "GET" || method === "DELETE") {
@@ -685,4 +794,38 @@ function mapRiskRow(row: any) {
     is_published: Number(row.is_published ?? 0),
     limits: parseLimits(row.limits),
   };
+}
+
+async function verifyTurnstileResponse(
+  token: string,
+  secret: string,
+  remoteIp?: string
+) {
+  const form = new URLSearchParams();
+  form.set("secret", secret);
+  form.set("response", token);
+  if (remoteIp) {
+    form.set("remoteip", remoteIp);
+  }
+
+  try {
+    const response = await fetch(TURNSTILE_VERIFY_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: form,
+    });
+
+    if (!response.ok) {
+      console.error("Turnstile verification failed", response.status);
+      return false;
+    }
+
+    const outcome = (await response.json()) as { success?: boolean };
+    return Boolean(outcome?.success);
+  } catch (error) {
+    console.error("Turnstile verification error", error);
+    return false;
+  }
 }
