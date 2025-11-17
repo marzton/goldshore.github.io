@@ -1,7 +1,7 @@
 {
   "version": "3.9",
   "name": "GoldShore Full Stack: Prod + Preview + Dev (DNS, Pages, Access, API, Resources, Health, Snapshot)",
-  "description": "Idempotent setup for goldshore-web (public), goldshore-monorepo (admin via Access), goldshore-api (Workers) across production/preview/dev, with per-env resources and a stored manifest.",
+  "description": "Idempotent setup for goldshore-web (public), goldshore-admin (admin via Access), goldshore-api (Workers) across production/preview/dev, with per-env resources and a stored manifest.",
   "secrets_expected": [
     "CF_API_TOKEN",
     "CF_ACCOUNT_ID",
@@ -11,7 +11,7 @@
   "vars": {
     "ROOT_DOMAIN": "goldshore.org",
     "WEB_PROJECT": "goldshore-web",
-    "ADMIN_PROJECT": "goldshore-monorepo",
+    "ADMIN_PROJECT": "goldshore-admin",
     "API_WORKER": "goldshore-api",
     "WORKERS_SUBDOMAIN": "goldshore",
     "HOME_IP_CIDR": "108.54.251.213/32",
