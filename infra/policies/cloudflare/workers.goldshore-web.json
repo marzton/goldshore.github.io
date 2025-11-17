@@ -17,7 +17,7 @@
       "services": [
         {
           "binding": "API",
-          "service": "goldshore-api-gateway",
+          "service": "goldshore-api",
           "environment": "production"
         }
       ],
@@ -41,7 +41,7 @@
       "services": [
         {
           "binding": "API",
-          "service": "goldshore-api-gateway",
+          "service": "goldshore-api",
           "environment": "preview"
         }
       ]
@@ -59,7 +59,7 @@
       "services": [
         {
           "binding": "API",
-          "service": "goldshore-api-gateway",
+          "service": "goldshore-api",
           "environment": "development"
         }
       ]
