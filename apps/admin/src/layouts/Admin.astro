@@ -13,7 +13,7 @@ const nonce = Astro.locals?.nonce ?? "";
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <style nonce={nonce}>
+    <style is:global nonce={nonce}>
       :root {
         --alcantara-blue: #0c1e2e;
         --alcantara-blue-soft: #10293f;
