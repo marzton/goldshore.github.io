@@ -249,9 +249,13 @@ const handler: ExportedHandler<Env> = {
     const assets = mapHostToAssets(url.hostname, env);
     const proxyUrl = new URL(req.url.replace(url.origin, assets));
 
+    const proxyHeaders = new Headers(req.headers);
+    proxyHeaders.delete('Host');
+    proxyHeaders.delete('host');
+
     const res = await fetch(proxyUrl.toString(), {
       method: req.method,
-      headers: req.headers,
+      headers: proxyHeaders,
       body: req.method === 'GET' || req.method === 'HEAD' ? undefined : req.body,
     });
 
