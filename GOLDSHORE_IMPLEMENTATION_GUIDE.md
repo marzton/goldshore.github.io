@@ -6,16 +6,16 @@ This guide provides a comprehensive overview of the GoldShore repository, includ
 
 The GoldShore repository is a monorepo built with npm workspaces. It contains the following applications and packages:
 
--   **`apps/web`**: The main marketing website, built with Astro.
--   **`apps/admin`**: The admin dashboard, also built with Astro and protected by Cloudflare Access.
--   **`apps/api-worker`**: The Cloudflare Worker that serves as the API for the platform.
+-   **`apps/goldshore-web`**: The main marketing website, built with Astro.
+-   **`apps/goldshore-admin`**: The admin dashboard, also built with Astro and protected by Cloudflare Access.
+-   **`apps/goldshore-api`**: The Cloudflare Worker that serves as the API for the platform.
 -   **`packages/*`**: Shared packages and libraries used across the different applications.
 
 ## 2. Design and Build Process
 
 ### 2.1. Layout and Component Planning
 
--   New Astro pages should be created in `apps/web/src/pages` or `apps/admin/src/pages`.
+-   New Astro pages should be created in `apps/goldshore-web/src/pages` or `apps/goldshore-admin/src/pages`.
 -   Reusable components should be placed in the `src/components` directory of the respective application.
 -   The design system is based on Tailwind CSS.
 
@@ -34,7 +34,7 @@ The GoldShore repository is a monorepo built with npm workspaces. It contains th
 
 ### 3.1. Environment Separation and Routing
 
--   The Cloudflare Worker (`apps/api-worker`) handles API requests.
+-   The Cloudflare Worker (`apps/goldshore-api`) handles API requests.
 -   The `wrangler.worker.toml` file contains the configuration for the worker, including routes, bindings, and environment variables.
 -   The worker is deployed to `api.goldshore.org`.
 
@@ -53,7 +53,7 @@ The GoldShore repository is a monorepo built with npm workspaces. It contains th
 
 ## 4. Asset and Image Management
 
--   Source images are located in the `public/images/raw` directory of the `apps/web` application.
+-   Source images are located in the `public/images/raw` directory of the `apps/goldshore-web` application.
 -   A script is used to process and optimize the images before deployment.
 
 ## 5. Domain Architecture and DNS

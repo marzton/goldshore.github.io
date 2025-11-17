@@ -1,6 +1,6 @@
 # Cloudflare Pages configuration. Worker deployments should use wrangler.worker.toml.
 name = "goldshore-web"
-pages_build_output_dir = "./apps/web/dist"
+pages_build_output_dir = "./apps/goldshore-web/dist"
 compatibility_date = "2025-10-05"
 
 [vars]

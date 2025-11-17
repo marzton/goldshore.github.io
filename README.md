@@ -7,10 +7,15 @@ Gold Shore keeps the marketing site, Cloudflare Workers router, scheduled jobs, 
 ```
 goldshore/
 ├─ apps/
-│  ├─ api-router/          # Cloudflare Worker that selects the right asset origin per host
-│  └─ web/                 # Astro marketing site and content
+│  ├─ goldshore-web/       # Astro marketing site and content
+│  ├─ goldshore-admin/     # Access-gated admin console
+│  ├─ goldshore-api/       # Cloudflare Worker powering API traffic
+│  └─ goldshore-agent/     # Background worker + queues
 ├─ packages/
-│  └─ image-tools/         # Sharp-based image optimisation pipeline
+│  ├─ ui/                  # Shared UI components and design tokens
+│  ├─ config/              # Shared TS/ESLint/Prettier configs
+│  ├─ utils/               # Shared utility helpers
+│  └─ auth/                # Access authentication helpers
 ├─ functions/              # Cloudflare Pages Functions (contact form handler)
 ├─ infra/                  # Scripts for DNS, Access, and other operational chores
 ├─ src/                    # Root Worker modules mounted by wrangler.toml
@@ -21,13 +26,13 @@ See the [Gold Shore Web & Worker Implementation Guide](./GOLDSHORE_IMPLEMENTATIO
 
 ## Applications
 
-### Astro marketing site (`apps/web`)
+### Astro marketing site (`apps/goldshore-web`)
 - Built with Astro 4.
-- Shared theme lives in `apps/web/src/styles/theme.css`; layouts and reusable components are in `apps/web/src/components/`.
-- Development: `npm run dev` (from repo root or inside `apps/web`).
+- Shared theme lives in `apps/goldshore-web/src/styles/theme.css`; layouts and reusable components are in `apps/goldshore-web/src/components/`.
+- Development: `npm run dev` (from repo root or inside `apps/goldshore-web`).
 - Production build: `npm run build` – optimises images first, then runs `astro build`.
 
-### Worker router (`apps/api-router` and `src/router.js`)
+### Worker router (`src/router.js`)
 - Receives all Cloudflare Worker traffic and proxies static assets to the correct Pages deployment (`production`, `preview`, `dev`).
 - Environment variables `PRODUCTION_ASSETS`, `PREVIEW_ASSETS`, and `DEV_ASSETS` can override the default Pages domains; the Worker stamps cache headers on proxied responses.
 - Requests to `/api/gpt` are forwarded to the GPT proxy handler described below.

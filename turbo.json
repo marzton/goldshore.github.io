@@ -4,9 +4,9 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [
-        "apps/web/dist/**",
-        "apps/admin/dist/**",
-        "apps/api/dist/**",
+        "apps/goldshore-web/dist/**",
+        "apps/goldshore-admin/dist/**",
+        "apps/goldshore-api/dist/**",
         "packages/**/dist/**",
         "dist/**"
       ]
