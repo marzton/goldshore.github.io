@@ -33,9 +33,6 @@ type RouteHandlerResult = Response | JsonValue | Record<string, any>;
 type RouteHandler = (
   ctx: RouteContext
 ) => Promise<RouteHandlerResult> | RouteHandlerResult;
-type HandlerResult = Response | JsonValue | Record<string, any>;
-
-type RouteHandler = (context: RouteContext) => Promise<HandlerResult> | HandlerResult;
 
 type Router = Record<string, Partial<Record<string, RouteHandler>>>;
 
@@ -64,7 +61,6 @@ const jsonResponse = (
   return new Response(JSON.stringify(body), { status, headers: merged });
 };
 
-const router: Router = {
 const createRouter = (): Router => ({
   "/v1/health": {
     GET: async ({ tools }) => tools.respond({ ok: true, ts: Date.now() }),
@@ -166,7 +162,7 @@ const createRouter = (): Router => ({
       return tools.respond({ ok: true, message: "Kill switch engaged" });
     },
   },
-};
+});
 
 function matchRoute(pattern: string, pathname: string): RouteParams | null {
   const paramNames: string[] = [];
