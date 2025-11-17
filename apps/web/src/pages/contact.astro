@@ -9,6 +9,8 @@ const meta = {
 };
 
 const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
+const contactEndpoint =
+  import.meta.env.PUBLIC_CONTACT_ENDPOINT?.trim() || "https://api.goldshore.org/contact";
 const contactScript = await import("../scripts/contactSuccess.ts?url");
 ---
 <BaseLayout {...meta}>
@@ -19,7 +21,7 @@ const contactScript = await import("../scripts/contactSuccess.ts?url");
 
   <form
     class="card contact-form"
-    action="/api/contact"
+    action={contactEndpoint}
     method="POST"
   >
     <input type="hidden" name="_redirect" value="/contact#contact-success" />
