@@ -1,4 +1,5 @@
 import type { ExportedHandler } from '@cloudflare/workers-types';
+import gptHandler from '../../../src/gpt-handler';
 
 type Env = {
   APP_NAME: string;
@@ -25,8 +26,13 @@ const cachePolicy = (pathname: string): string =>
     : 'no-store';
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname.startsWith('/api/gpt')) {
+      return gptHandler.fetch(request, env, ctx);
+    }
+
     const origin = pickOrigin(url.hostname, env);
     const upstream = new URL(request.url.replace(url.origin, origin));
 
