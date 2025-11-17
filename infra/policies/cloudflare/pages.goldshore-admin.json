@@ -43,9 +43,6 @@
       ]
     },
     "preview": {
-      "compatibility_date": "2024-02-19",
-      "environment_variables": {
-        "WORKER_HOSTNAME": "admin-preview.goldshore.org"
       "compatibility_date": "2025-01-15",
       "environment_variables": {
         "WORKER_HOSTNAME": "admin-preview.goldshore.org",
