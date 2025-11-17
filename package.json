@@ -12,7 +12,10 @@
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "deploy": "turbo run deploy"
+    "deploy": "turbo run deploy",
+    "dev:api": "wrangler dev --config apps/goldshore-api/wrangler.toml",
+    "build:api": "wrangler build --config apps/goldshore-api/wrangler.toml",
+    "deploy:api": "wrangler deploy --config apps/goldshore-api/wrangler.toml"
   },
   "devDependencies": {
     "eslint": "^9.39.1",
