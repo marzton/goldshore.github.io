@@ -4,6 +4,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 
 import worker, { type Env } from "./index";
 import * as webhookModule from "./webhook";
+import * as authModule from "./auth";
 
 const encoder = new TextEncoder();
 
@@ -33,7 +34,7 @@ describe("routeRequest", () => {
       GITHUB_APP_ID: "123456",
       GITHUB_APP_PRIVATE_KEY: "dummy-key",
       GOLDSHORE_ENV: "test",
-      GOLDSHORE_JWT_SECRET: "jwt-secret",
+      CLOUDFLARE_JWKS_URI: "https://mock-jwks-uri",
       KV_SESSIONS: {} as unknown as KVNamespace,
       KV_CACHE: {} as unknown as KVNamespace,
       DO_SESSIONS: {} as unknown as DurableObjectNamespace,
@@ -67,5 +68,38 @@ describe("routeRequest", () => {
     expect(handleWebhookSpy).toHaveBeenCalledWith(request, env, ctx);
     expect(response.status).toBe(202);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+
+  it("returns 401 for requests with an invalid JWT", async () => {
+    const env = {
+      GOLDSHORE_ENV: "test",
+      CLOUDFLARE_JWKS_URI: "https://mock-jwks-uri",
+      KV_SESSIONS: {} as unknown as KVNamespace,
+      KV_CACHE: {} as unknown as KVNamespace,
+      DO_SESSIONS: {} as unknown as DurableObjectNamespace,
+      Q_EVENTS: { send: vi.fn() } as unknown as Queue<unknown>,
+      RATE_LIMIT_MAX: "10",
+      RATE_LIMIT_WINDOW: "60"
+    } as unknown as Env;
+
+    const request = new Request("https://example.com/v1/events", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "authorization": "Bearer invalid-token"
+      },
+      body: JSON.stringify({ type: "test" })
+    });
+
+    const ctx = {
+      waitUntil: vi.fn(),
+      passThroughOnException: vi.fn()
+    } as unknown as ExecutionContext;
+
+    vi.spyOn(authModule, "verifyJwt").mockRejectedValue(new Error("Invalid signature"));
+
+    const response = await worker.fetch(request, env, ctx);
+
+    expect(response.status).toBe(401);
   });
 });
