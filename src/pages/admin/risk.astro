@@ -12,6 +12,13 @@ const limits = [
 const killSwitchEndpoint = buildApiUrl('/admin/risk/kill-switch');
 const circuitBreakerEndpoint = buildApiUrl('/admin/risk/circuit-breaker');
 const docsEndpoint = buildApiUrl('/docs');
+const killSwitchPayload = {
+  reason: 'Manual kill switch activation from admin console'
+};
+const circuitBreakerPayload = {
+  reason: 'Manual circuit breaker trigger from admin console',
+  durationSeconds: 900
+};
 ---
 <BaseLayout title="Admin | Risk" description="Review exposure, limits, and kill-switch controls.">
   <AdminLayout heading="Risk" description="Stay ahead of exposure and apply controls without leaving the console.">
@@ -25,6 +32,7 @@ const docsEndpoint = buildApiUrl('/docs');
             data-endpoint={killSwitchEndpoint}
             data-method="POST"
             data-include-credentials
+            data-payload={JSON.stringify(killSwitchPayload)}
           >
             Activate kill switch
           </button>
@@ -37,6 +45,7 @@ const docsEndpoint = buildApiUrl('/docs');
             data-endpoint={circuitBreakerEndpoint}
             data-method="POST"
             data-include-credentials
+            data-payload={JSON.stringify(circuitBreakerPayload)}
           >
             Trigger breaker
           </button>

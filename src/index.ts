@@ -17,6 +17,32 @@ type Variables = {
   scopes: string[];
 };
 
+type RuntimeKillSwitchState = {
+  engaged: boolean;
+  engagedAt: string | null;
+  reason: string | null;
+  lastUpdatedBy: string | null;
+  version: number;
+};
+
+type RuntimeCircuitBreakerState = {
+  active: boolean;
+  triggeredAt: string | null;
+  expiresAt: string | null;
+  reason: string | null;
+  lastUpdatedBy: string | null;
+};
+
+type RuntimeRiskState = {
+  killSwitch: RuntimeKillSwitchState;
+  circuitBreaker: RuntimeCircuitBreakerState;
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __GOLDSHORE_RISK_STATE?: RuntimeRiskState;
+}
+
 type AccessVerificationResult = {
   email: string;
   scopes: string[];
@@ -24,6 +50,44 @@ type AccessVerificationResult = {
 };
 
 const jwksClientCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+
+function getRuntimeRiskState(): RuntimeRiskState {
+  if (!globalThis.__GOLDSHORE_RISK_STATE) {
+    globalThis.__GOLDSHORE_RISK_STATE = {
+      killSwitch: {
+        engaged: false,
+        engagedAt: null,
+        reason: null,
+        lastUpdatedBy: null,
+        version: 0,
+      },
+      circuitBreaker: {
+        active: false,
+        triggeredAt: null,
+        expiresAt: null,
+        reason: null,
+        lastUpdatedBy: null,
+      },
+    } satisfies RuntimeRiskState;
+  }
+
+  return globalThis.__GOLDSHORE_RISK_STATE;
+}
+
+async function readJsonBody(
+  req: Request,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const parsed = await req.json();
+    if (parsed && typeof parsed === 'object') {
+      return parsed as Record<string, unknown>;
+    }
+  } catch (error) {
+    console.warn('Failed to parse JSON body', error);
+  }
+
+  return null;
+}
 
 function normalizeScopeClaim(value: unknown): string[] {
   if (!value) {
@@ -372,6 +436,82 @@ app.get('/v1/config', (c) => {
       cors: allowedOrigins,
     },
     hint: 'Public config only; secrets redacted.',
+  });
+});
+
+app.get('/v1/risk/runtime', (c) => {
+  const scopeError = ensureScope(c, 'reader');
+  if (scopeError) {
+    return scopeError;
+  }
+
+  return c.json({
+    ok: true,
+    data: getRuntimeRiskState(),
+    hint: 'Runtime-only risk config; persistence pending.',
+  });
+});
+
+app.post('/v1/admin/risk/kill-switch', async (c) => {
+  const scopeError = ensureScope(c, 'ops');
+  if (scopeError) {
+    return scopeError;
+  }
+
+  const state = getRuntimeRiskState();
+  const payload = (await readJsonBody(c.req)) ?? {};
+  const reasonCandidate = payload['reason'];
+  const reasonRaw = typeof reasonCandidate === 'string' ? reasonCandidate.trim() : '';
+  const reason = reasonRaw || 'Manual kill switch activation';
+  const nextVersion = Math.max(state.killSwitch.version ?? 0, 0) + 1;
+
+  state.killSwitch = {
+    ...state.killSwitch,
+    engaged: true,
+    engagedAt: new Date().toISOString(),
+    reason,
+    lastUpdatedBy: c.get('identityEmail') ?? null,
+    version: nextVersion,
+  };
+
+  return c.json({
+    ok: true,
+    data: { killSwitch: state.killSwitch },
+    hint: 'Kill switch engaged; runtime configuration initialised.',
+  });
+});
+
+app.post('/v1/admin/risk/circuit-breaker', async (c) => {
+  const scopeError = ensureScope(c, 'ops');
+  if (scopeError) {
+    return scopeError;
+  }
+
+  const payload = (await readJsonBody(c.req)) ?? {};
+  const durationCandidate = payload['durationSeconds'];
+  const durationRaw = typeof durationCandidate === 'number' ? durationCandidate : Number(durationCandidate);
+  const isNumberDuration = typeof durationRaw === 'number' && Number.isFinite(durationRaw);
+  const boundedDuration = isNumberDuration ? Math.max(60, Math.min(durationRaw, 3600)) : 900;
+  const reasonCandidate = payload['reason'];
+  const reasonRaw = typeof reasonCandidate === 'string' ? reasonCandidate.trim() : '';
+  const reason = reasonRaw || 'Manual circuit breaker trigger';
+  const identity = c.get('identityEmail') ?? null;
+  const triggeredAt = new Date();
+  const expiresAt = new Date(triggeredAt.getTime() + boundedDuration * 1000);
+  const state = getRuntimeRiskState();
+
+  state.circuitBreaker = {
+    active: true,
+    triggeredAt: triggeredAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    reason,
+    lastUpdatedBy: identity,
+  };
+
+  return c.json({
+    ok: true,
+    data: { circuitBreaker: state.circuitBreaker },
+    hint: `Circuit breaker active for ${boundedDuration} seconds; runtime configuration initialised.`,
   });
 });
 
