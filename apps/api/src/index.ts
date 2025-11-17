@@ -152,6 +152,7 @@ const router: Record<string, Partial<Record<string, RouteHandler>>> = {
   },
   "/v1/risk/killswitch": {
     POST: async ({ env, tools }) => {
+      await ensureTable(env, "risk_configs");
       await env.DB.prepare("UPDATE risk_configs SET is_published = 0, updated_at = CURRENT_TIMESTAMP").run();
       return tools.respond({ ok: true, message: "Kill switch engaged" });
     },
@@ -664,7 +665,12 @@ async function parseBody(req: Request): Promise<Record<string, any> | null> {
   }
   const ct = req.headers.get("content-type") || "";
   if (ct.includes("application/json")) {
-    return await req.json();
+    try {
+      return await req.json();
+    } catch (error) {
+      console.warn("Failed to parse JSON body", error);
+      return null;
+    }
   }
   if (ct.includes("application/x-www-form-urlencoded")) {
     return Object.fromEntries((await req.formData()).entries());
