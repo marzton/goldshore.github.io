@@ -178,6 +178,7 @@ async function checkCloudflare() {
       }
     }
     if (check.type === "worker_health") {
+      // Task reference: https://github.com/goldshore/goldshore-github-io/pull/596
       const bindings = await getWorkerBindings(check.script);
       if (!Array.isArray(bindings) || bindings.length === 0) {
         await openOpsIssue(
@@ -186,81 +187,10 @@ async function checkCloudflare() {
           `Worker missing bindings: ${check.script}`,
           `No bindings returned for Worker \`${check.script}\`. Verify wrangler.toml and deployment.`,
           cfg.ai_agent.triage_labels
-    if (check.type === "pages_domain_recovery") {
-      for (const target of check.targets) {
-        let initialError: string | null = null;
-        try {
-          const response = await probeHttpsHost(target.host);
-          if (!response.ok) {
-            const body = await response.text();
-            initialError = `Initial probe returned HTTP ${response.status}.${formatBodyPreview(body)}`;
-          } else {
-            continue;
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          initialError = `Initial probe failed: ${message}`;
-        }
-
-        const remediationSteps: string[] = [];
-        if (initialError) remediationSteps.push(initialError);
-        for (const domain of target.domains) {
-          try {
-            const res = await bindPagesDomain(target.project, domain);
-            remediationSteps.push(
-              `Rebound domain \`${domain}\` (status: ${res.status ?? "unknown"}).`
-            );
-          } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            remediationSteps.push(`Failed to bind \`${domain}\`: ${message}`);
-          }
-        }
-
-        try {
-          const deployment = await triggerPagesDeployment(target.project);
-          remediationSteps.push(`Triggered deployment \`${deployment.id ?? "unknown"}\`.`);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          remediationSteps.push(`Failed to trigger deployment: ${message}`);
-        }
-
-        let recovered = false;
-        try {
-          const verification = await probeHttpsHost(target.host);
-          const verificationBody = await verification.text();
-          if (verification.ok) {
-            recovered = true;
-            remediationSteps.push("Post-remediation probe succeeded.");
-          } else {
-            remediationSteps.push(
-              `Post-remediation probe returned HTTP ${verification.status}.${formatBodyPreview(
-                verificationBody
-              )}`
-            );
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          remediationSteps.push(`Post-remediation probe failed: ${message}`);
-        }
-
-        if (recovered) {
-          log(`Recovered Pages domain ${target.host}`);
-        } else {
-          const details = remediationSteps.join("\n\n");
-          const domainSection = target.domains.length
-            ? `Domains:\n${target.domains.map(domain => `- \`${domain}\``).join("\n")}`
-            : "Domains: _none defined_";
-          await openOpsIssue(
-            org,
-            "goldshore",
-            `Pages domain recovery failed: ${target.host}`,
-            `Project: \`${target.project}\`\nHost: \`${target.host}\`\n\n${domainSection}\n\nRemediation log:\n\n${details}`,
-            cfg.ai_agent.triage_labels
-          );
-        }
+        );
+        continue;
       }
-    }
-    if (check.type === "worker_health") {
+
       try {
         const { response, url } = await fetchWorkerRoute(
           check.script,
@@ -349,7 +279,9 @@ async function checkCloudflare() {
           await openWorkerHealthIncident(
             check.script,
             check.path,
-            `Health endpoint \`${url}\` reported additional errors despite \`ok: true\`:\n- ${errors.join("\n- ")}.${formatBodyPreview(bodyText)}`
+            `Health endpoint \`${url}\` reported additional errors despite \`ok: true\`:\n- ${errors.join("\n- ")}.${formatBodyPreview(
+              bodyText
+            )}`
           );
           continue;
         }
@@ -358,8 +290,84 @@ async function checkCloudflare() {
         await openWorkerHealthIncident(
           check.script,
           check.path,
-          `Failed to reach Worker health endpoint. Error: ${message}`
+          `Failed to execute worker health check: ${message}`
         );
+      }
+      continue;
+    }
+
+    if (check.type === "pages_domain_recovery") {
+      for (const target of check.targets) {
+        let initialError: string | null = null;
+        try {
+          const response = await probeHttpsHost(target.host);
+          if (!response.ok) {
+            const body = await response.text();
+            initialError = `Initial probe returned HTTP ${response.status}.${formatBodyPreview(body)}`;
+          } else {
+            continue;
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          initialError = `Initial probe failed: ${message}`;
+        }
+
+        const remediationSteps: string[] = [];
+        if (initialError) remediationSteps.push(initialError);
+        for (const domain of target.domains) {
+          try {
+            const res = await bindPagesDomain(target.project, domain);
+            remediationSteps.push(
+              `Rebound domain \`${domain}\` (status: ${res.status ?? "unknown"}).`
+            );
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            remediationSteps.push(`Failed to bind \`${domain}\`: ${message}`);
+          }
+        }
+
+        try {
+          const deployment = await triggerPagesDeployment(target.project);
+          remediationSteps.push(`Triggered deployment \`${deployment.id ?? "unknown"}\`.`);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          remediationSteps.push(`Failed to trigger deployment: ${message}`);
+        }
+
+        let recovered = false;
+        try {
+          const verification = await probeHttpsHost(target.host);
+          const verificationBody = await verification.text();
+          if (verification.ok) {
+            recovered = true;
+            remediationSteps.push("Post-remediation probe succeeded.");
+          } else {
+            remediationSteps.push(
+              `Post-remediation probe returned HTTP ${verification.status}.${formatBodyPreview(
+                verificationBody
+              )}`
+            );
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          remediationSteps.push(`Post-remediation probe failed: ${message}`);
+        }
+
+        if (recovered) {
+          log(`Recovered Pages domain ${target.host}`);
+        } else {
+          const details = remediationSteps.join("\n\n");
+          const domainSection = target.domains.length
+            ? `Domains:\n${target.domains.map(domain => `- \`${domain}\``).join("\n")}`
+            : "Domains: _none defined_";
+          await openOpsIssue(
+            org,
+            "goldshore",
+            `Pages domain recovery failed: ${target.host}`,
+            `Project: \`${target.project}\`\nHost: \`${target.host}\`\n\n${domainSection}\n\nRemediation log:\n\n${details}`,
+            cfg.ai_agent.triage_labels
+          );
+        }
       }
     }
   }

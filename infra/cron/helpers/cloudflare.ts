@@ -1,7 +1,4 @@
 const CF_API = "https://api.cloudflare.com/client/v4";
-const tok = process.env.CF_API_TOKEN!;
-const acc = process.env.CF_ACCOUNT_ID!;
-const zone = process.env.CF_ZONE_ID!;
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -45,10 +42,9 @@ export async function getDNSRecords() {
   return await cfFetch<Rec[]>(`/zones/${zone}/dns_records?per_page=200`);
 }
 
+// Task reference: https://github.com/goldshore/goldshore-github-io/pull/596
 export async function getWorkerBindings(script: string) {
   type Binding = { name: string; type: string };
-  return await cfFetch<Binding[]>(`/accounts/${acc}/workers/scripts/${script}/bindings`);
-}
   const acc = getAccount();
   return await cfFetch<Binding[]>(`/accounts/${acc}/workers/scripts/${script}/bindings`);
 }
