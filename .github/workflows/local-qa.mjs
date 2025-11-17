@@ -9,17 +9,20 @@ const run = (command, options = {}) => {
 console.log("Running Gold Shore local QA checks…");
 run("npm run process-images");
 
-const workspaceName = "apps/web";
-const workspacePath = join(process.cwd(), workspaceName);
-const hasWebWorkspace = existsSync(workspacePath);
+const workspaceCandidates = ["apps/site", "apps/web"];
+const workspaceName = workspaceCandidates.find((name) =>
+  existsSync(join(process.cwd(), name)),
+);
 
-if (hasWebWorkspace) {
+if (workspaceName) {
   const env = { ...process.env, CI: "" };
   run(`npm --workspace ${workspaceName} install`, { env });
   run(`npm --workspace ${workspaceName} run build`, { env });
 } else {
   console.warn(
-    `Skipping ${workspaceName} checks because workspace directory was not found.`,
+    `Skipping site checks because none of the workspaces [${workspaceCandidates.join(
+      ", ",
+    )}] were found.`,
   );
 }
 
