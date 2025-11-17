@@ -28,13 +28,13 @@ jobs:
         run: npm install --no-package-lock --save-dev html-validate axe-core puppeteer lighthouse http-server
 
       - name: Build site
-        # This runs the build script, typically compiling apps/web to apps/web/dist
+        # This runs the build script, typically compiling apps/site to apps/site/dist
         run: npm run build
 
       - name: Lighthouse and QA Score Check
         # Starts a temporary server, runs Lighthouse on the build output, and extracts JSON report
         run: |
-          npx http-server apps/web/dist -p 4173 &
+          npx http-server apps/site/dist -p 4173 &
           sleep 5
           npx lighthouse http://localhost:4173 \
             --only-categories=performance,accessibility,seo \
