@@ -72,6 +72,8 @@ describe("Goldshore API REST handlers", () => {
     expect(customerCreate.res.status).toBe(201);
     expect(customerCreate.json.ok).toBe(true);
     const customerId = customerCreate.json.data.id;
+    expect(typeof customerId).toBe("string");
+    expect(customerCreate.json.data.status).toBe("active");
 
     const subscriptionCreate = await request("/v1/subscriptions", {
       method: "POST",
@@ -122,29 +124,19 @@ describe("Goldshore API REST handlers", () => {
       })
     });
     expect(riskCreate.res.status).toBe(201);
-    expect(riskCreate.json.data.is_published).toBe(1);
+    expect(riskCreate.json.data.is_published).toBe(true);
 
-    const riskLimits = await request("/v1/risk/config", {
-      method: "GET",
-    });
+    const riskLimits = await request("/v1/risk/limits");
     expect(riskLimits.res.status).toBe(200);
-    expect(riskLimits.json.data.is_published).toBe(1);
-  });
+    expect(riskLimits.json.data.is_published).toBe(true);
+    expect(riskLimits.json.data.limits.max_notional).toBe(50000);
 
-  it("validates email on lead capture", async () => {
-    const validLead = await request("/v1/lead", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "test@example.com" })
-    });
-    expect(validLead.res.status).toBe(200);
+    const killswitch = await request("/v1/risk/killswitch", { method: "POST" });
+    expect(killswitch.res.status).toBe(200);
 
-    const invalidLead = await request("/v1/lead", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "not-an-email" })
-    });
-    expect(invalidLead.res.status).toBe(400);
+    const noLimits = await request("/v1/risk/limits");
+    expect(noLimits.res.status).toBe(404);
+    expect(noLimits.json.error).toBe("NO_PUBLISHED_LIMITS");
   });
 
   it("validates email on lead capture", async () => {

@@ -28,7 +28,15 @@ interface RouteContext {
   tools: RouteTools;
 }
 
-type RouteHandler = (ctx: RouteContext) => Promise<Response | JsonValue | Record<string, any>> | Response | JsonValue | Record<string, any>;
+type RouteHandler = (
+  context: RouteContext
+) =>
+  | Promise<Response | JsonValue | Record<string, any>>
+  | Response
+  | JsonValue
+  | Record<string, any>;
+
+type Router = Record<string, Partial<Record<string, RouteHandler>>>;
 
 const cors = (req: Request, origins: string) => {
   const o = new URL(req.url).origin;
@@ -55,168 +63,7 @@ const jsonResponse = (
   return new Response(JSON.stringify(body), { status, headers: merged });
 };
 
-type RouteContext = {
-  corsHeaders: HeadersInit;
-  jsonHeaders: HeadersInit;
-  headers: HeadersInit;
-};
-
-type RouteParams = Record<string, string>;
-
-type RouteHandlerResult = Response | JsonValue | Record<string, any>;
-
-type RouteHandler = (
-  req: Request,
-  env: Env,
-  ctx: RouteContext,
-  params: RouteParams
-) => Promise<RouteHandlerResult> | RouteHandlerResult;
-
-type Router = Record<string, Partial<Record<string, RouteHandler>>>;
-
-const buildRouter = (ctx: RouteContext): Router => ({
-  "/v1/health": {
-    GET: (_req: Request, _env: Env, ctx: RouteContext) => jsonResponse({ ok: true, ts: Date.now() }, 200, ctx.jsonHeaders),
-  },
-  "/v1/whoami": {
-    GET: (req: Request, _env: Env, ctx: RouteContext) => {
-      const email = req.headers.get("cf-access-authenticated-user-email");
-      const ok = !!email;
-      return jsonResponse(ok ? { ok, email } : { ok: false, error: "UNAUTHENTICATED" }, ok ? 200 : 401, ctx.jsonHeaders);
-    },
-  },
-  "/v1/lead": {
-    POST: async (req: Request, env: Env, ctx: RouteContext) => {
-      const headers = { ...ctx.jsonHeaders };
-      const ct = req.headers.get("content-type") || "";
-      const body = ct.includes("application/json")
-        ? await req.json()
-        : Object.fromEntries((await req.formData()).entries());
-      const email = (body.email || "").toString().trim();
-      const emailRegex =
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-      if (!email) return jsonResponse({ ok: false, error: "EMAIL_REQUIRED" }, 400, headers);
-      if (!emailRegex.test(email)) return jsonResponse({ ok: false, error: "INVALID_EMAIL" }, 400, headers);
-      await env.DB.prepare(
-        "CREATE TABLE IF NOT EXISTS leads (email TEXT PRIMARY KEY, ts TEXT DEFAULT CURRENT_TIMESTAMP)"
-      ).run();
-      await env.DB.prepare("INSERT OR IGNORE INTO leads (email) VALUES (?)").bind(email).run();
-      return jsonResponse({ ok: true }, 200, headers);
-    },
-  },
-  "/v1/orders": {
-    GET: async (req: Request, env: Env, ctx: RouteContext) => {
-      await env.DB.prepare(
-        "CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, symbol TEXT, qty REAL, side TEXT, ts TEXT DEFAULT CURRENT_TIMESTAMP)"
-      ).run();
-      const { results } = await env.DB.prepare("SELECT * FROM orders ORDER BY ts DESC LIMIT 50").all();
-      return jsonResponse({ ok: true, data: results }, 200, ctx.jsonHeaders);
-    },
-  },
-  "/v1/customers": {
-    POST: async (req: Request, env: Env, ctx: RouteContext) => {
-      const { name, email } = await req.json();
-      const customer = await createCustomer(env.DB, name, email);
-      return jsonResponse({ ok: true, data: customer }, 201, ctx.jsonHeaders);
-    },
-    GET: async (_req: Request, env: Env, ctx: RouteContext) => {
-      const customers = await listCustomers(env.DB);
-      return jsonResponse({ ok: true, data: customers }, 200, ctx.jsonHeaders);
-    },
-  },
-  "/v1/customers/:id": {
-    GET: async (_req: Request, env: Env, ctx: RouteContext, params: { id: string }) => {
-      const customer = await getCustomer(env.DB, params.id);
-      return jsonResponse({ ok: true, data: customer }, 200, ctx.jsonHeaders);
-    },
-    PUT: async (req: Request, env: Env, ctx: RouteContext, params: { id: string }) => {
-      const { name, email } = await req.json();
-      await updateCustomer(env.DB, params.id, name, email);
-      return jsonResponse({ ok: true }, 200, ctx.jsonHeaders);
-    },
-    DELETE: async (_req: Request, env: Env, ctx: RouteContext, params: { id: string }) => {
-      await deleteCustomer(env.DB, params.id);
-      return jsonResponse({ ok: true }, 200, ctx.jsonHeaders);
-    },
-  },
-  "/v1/subscriptions": {
-    POST: async (req: Request, env: Env, ctx: RouteContext) => {
-      const { name, price, billing_cycle } = await req.json();
-      const subscription = await createSubscription(env.DB, name, price, billing_cycle);
-      return jsonResponse({ ok: true, data: subscription }, 201, ctx.jsonHeaders);
-    },
-    GET: async (_req: Request, env: Env, ctx: RouteContext) => {
-      const subscriptions = await listSubscriptions(env.DB);
-      return jsonResponse({ ok: true, data: subscriptions }, 200, ctx.jsonHeaders);
-    },
-  },
-  "/v1/subscriptions/:id": {
-    GET: async (_req: Request, env: Env, ctx: RouteContext, params: { id: string }) => {
-      const subscription = await getSubscription(env.DB, params.id);
-      return jsonResponse({ ok: true, data: subscription }, 200, ctx.jsonHeaders);
-    },
-    PUT: async (req: Request, env: Env, ctx: RouteContext, params: { id: string }) => {
-      const { name, price, billing_cycle } = await req.json();
-      await updateSubscription(env.DB, params.id, name, price, billing_cycle);
-      return jsonResponse({ ok: true }, 200, ctx.jsonHeaders);
-    },
-    DELETE: async (_req: Request, env: Env, ctx: RouteContext, params: { id: string }) => {
-      await deleteSubscription(env.DB, params.id);
-      return jsonResponse({ ok: true }, 200, ctx.jsonHeaders);
-    },
-  },
-  "/v1/risk/config": {
-    POST: async (req: Request, env: Env, ctx: RouteContext) => {
-      const { name, is_published, limits } = await req.json();
-      const config = await setRiskConfig(env.DB, name, is_published, limits);
-      return jsonResponse({ ok: true, data: config }, 201, ctx.jsonHeaders);
-    },
-    GET: async (_req: Request, env: Env, ctx: RouteContext) => {
-      const config = await getRiskConfig(env.DB);
-      return jsonResponse({ ok: true, data: config }, 200, ctx.jsonHeaders);
-    },
-  },
-  "/v1/risk/check": {
-    POST: async (req: Request, env: Env, ctx: RouteContext) => {
-      const order = await req.json();
-      const result = await checkRisk(env.DB, order);
-      return jsonResponse(result, 200, ctx.jsonHeaders);
-    },
-  },
-  "/v1/risk/killswitch": {
-    POST: async (_req: Request, env: Env, ctx: RouteContext) => {
-      const result = await killSwitch(env.DB);
-      return jsonResponse(result, 200, ctx.jsonHeaders);
-    },
-  },
-  "/v1/customer_subscriptions": {
-    POST: async (req: Request, env: Env, ctx: RouteContext) => {
-      const { customer_id, subscription_id } = await req.json();
-      const customerSubscription = await createCustomerSubscription(env.DB, customer_id, subscription_id);
-      return jsonResponse({ ok: true, data: customerSubscription }, 201, ctx.jsonHeaders);
-    },
-    GET: async (req: Request, env: Env, ctx: RouteContext) => {
-      const url = new URL(req.url);
-      const customer_id = url.searchParams.get("customer_id");
-      const customerSubscriptions = await listCustomerSubscriptions(env.DB, customer_id);
-      return jsonResponse({ ok: true, data: customerSubscriptions }, 200, ctx.jsonHeaders);
-    },
-  },
-  "/v1/customer_subscriptions/:id": {
-    GET: async (_req: Request, env: Env, ctx: RouteContext, params: { id: string }) => {
-      const customerSubscription = await getCustomerSubscription(env.DB, params.id);
-      return jsonResponse({ ok: true, data: customerSubscription }, 200, ctx.jsonHeaders);
-    },
-    PATCH: async (req: Request, env: Env, ctx: RouteContext, params: { id: string }) => {
-      const { status } = await req.json();
-      await updateCustomerSubscription(env.DB, params.id, status);
-      const customerSubscription = await getCustomerSubscription(env.DB, params.id);
-      return jsonResponse({ ok: true, data: customerSubscription }, 200, ctx.jsonHeaders);
-    },
-    DELETE: async (_req: Request, env: Env, ctx: RouteContext, params: { id: string }) => {
-      await deleteCustomerSubscription(env.DB, params.id);
-      return new Response(null, { status: 204, headers: ctx.corsHeaders });
-const router: Record<string, Partial<Record<string, RouteHandler>>> = {
+const router: Router = {
   "/v1/health": {
     GET: async ({ tools }) => tools.respond({ ok: true, ts: Date.now() }),
   },
@@ -224,7 +71,7 @@ const router: Record<string, Partial<Record<string, RouteHandler>>> = {
     GET: async ({ req, tools }) => {
       const email = req.headers.get("cf-access-authenticated-user-email");
       const ok = !!email;
-      return tools.respond(ok ? { ok, email } : { ok: false, error: "UNAUTHENTICATED" });
+      return tools.respond(ok ? { ok, email } : { ok: false, error: "UNAUTHENTICATED" }, ok ? 200 : 401);
     },
   },
   "/v1/lead": {
@@ -235,8 +82,7 @@ const router: Record<string, Partial<Record<string, RouteHandler>>> = {
         ? await req.json()
         : Object.fromEntries((await req.formData()).entries());
       const email = (payload.email || "").toString().trim();
-      const emailRegex =
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!email) {
         return tools.respond({ ok: false, error: "EMAIL_REQUIRED" }, 400);
       }
@@ -298,32 +144,43 @@ const router: Record<string, Partial<Record<string, RouteHandler>>> = {
     PUT: updateRiskConfig,
     DELETE: deleteRiskConfig,
   },
+  "/v1/risk/limits": {
+    GET: getPublishedRiskLimits,
+  },
   "/v1/risk/check": {
     POST: async ({ req, env, tools }) => {
       const order = await req.json();
-      const limits = await getActiveRiskLimits(env);
-      if (!limits) {
+      const config = await getPublishedRiskConfig(env);
+      if (!config) {
         return tools.respond({ ok: true, message: "No risk limits configured" });
       }
-      if (typeof order.notional === "number" && limits.max_notional !== undefined && order.notional > limits.max_notional) {
-        return tools.respond({ ok: false, error: "NOTIONAL_EXCEEDS_LIMIT" });
+      const mapped = mapRiskRow(config);
+      const limits = mapped.limits ?? {};
+      const notional = typeof order.notional === "number" ? order.notional : Number(order.notional);
+      const maxNotional = typeof limits.max_notional === "number" ? limits.max_notional : Number(limits.max_notional);
+      const maxOrderValue = typeof limits.max_order_value === "number" ? limits.max_order_value : Number(limits.max_order_value);
+      const ceiling = [maxNotional, maxOrderValue].filter(value => Number.isFinite(value)).sort((a, b) => a - b)[0];
+      if (Number.isFinite(ceiling) && Number(notional) > Number(ceiling)) {
+        return tools.respond({ ok: false, error: "ORDER_EXCEEDS_LIMITS" }, 400);
       }
-      return tools.respond({ ok: true });
+      return tools.respond({ ok: true, data: { limits: mapped.limits } });
     },
   },
   "/v1/risk/killswitch": {
     POST: async ({ env, tools }) => {
-      await env.DB.prepare("UPDATE risk_configs SET is_published = 0, updated_at = CURRENT_TIMESTAMP").run();
+      await ensureTable(env, "risk_configs");
+      await env.DB.prepare(
+        "UPDATE risk_configs SET is_published = 0, published_at = NULL, updated_at = CURRENT_TIMESTAMP"
+      ).run();
       return tools.respond({ ok: true, message: "Kill switch engaged" });
     },
   },
-});
+};
 
 export default {
   async fetch(req: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const corsHeaders = cors(req, env.CORS_ORIGINS);
     const jsonHeaders = { ...JSON_CONTENT_HEADERS, ...corsHeaders };
-    const defaultHeaders = { ...jsonHeaders };
 
     const tools: RouteTools = {
       corsHeaders,
@@ -332,34 +189,19 @@ export default {
     };
 
     if (req.method === "OPTIONS") {
-      return new Response(null, { headers: defaultHeaders });
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
-
-    const routeContext: RouteContext = { corsHeaders, jsonHeaders, headers };
-    const router = buildRouter(routeContext);
 
     const url = new URL(req.url);
     const path = url.pathname;
     const method = req.method.toUpperCase();
 
     for (const route in router) {
-      const pattern = new RegExp(`^${route.replace(/:\w+/g, "(?<param>[^/]+)")}$`);
+      const pattern = new RegExp(`^${route.replace(/:\w+/g, "([^/]+)")}$`);
       const match = path.match(pattern);
-
-      if (match) {
-        const params = {};
-        const paramNames = (route.match(/:\w+/g) || []).map(name => name.substring(1));
-        paramNames.forEach((name, index) => {
-          params[name] = match[index + 1];
-        });
-
-        if (router[route][method]) {
-          const result = await router[route][method](req, env, routeContext, params);
-          if (result instanceof Response) {
-            return result;
-          }
-          return jsonResponse(result ?? { ok: true }, 200, routeContext.jsonHeaders);
-      if (!match) continue;
+      if (!match) {
+        continue;
+      }
 
       const params: RouteParams = {};
       const paramNames = route.match(/:(\w+)/g) || [];
@@ -380,7 +222,8 @@ export default {
       if (result instanceof Response) {
         return result;
       }
-      return tools.respond(result as JsonValue | Record<string, any>);
+
+      return tools.respond((result ?? { ok: true }) as JsonValue | Record<string, any>);
     }
 
     return tools.respond({ ok: false, error: "NOT_FOUND" }, 404);
@@ -404,15 +247,22 @@ async function listCustomers({ env, tools }: RouteContext) {
 async function createCustomer({ req, env, tools }: RouteContext) {
   await ensureTable(env, "customers");
   const body = await parseBody(req);
-  const name = (body?.name ?? "").toString().trim();
-  const email = (body?.email ?? "").toString().trim();
-  if (!name || !email) {
+  const nameRaw = body?.name;
+  const email = body?.email?.toString().trim();
+  if (!email) {
     return tools.respond({ ok: false, error: "NAME_AND_EMAIL_REQUIRED" }, 400);
   }
-  const id = body?.id ? body.id.toString() : crypto.randomUUID();
-  await env.DB.prepare(
-    "INSERT INTO customers (id, name, email) VALUES (?, ?, ?)"
-  ).bind(id, name, email).run();
+  const name = nameRaw === undefined || nameRaw === null ? null : nameRaw.toString().trim();
+  const status = body?.status?.toString().trim() || "active";
+  const id = body?.id ? body.id.toString().trim() : crypto.randomUUID();
+  try {
+    await env.DB.prepare(
+      "INSERT INTO customers (id, name, email, status) VALUES (?, ?, ?, ?)"
+    ).bind(id, name, email, status).run();
+  } catch (error) {
+    console.warn("Failed to create customer", error);
+    return tools.respond({ ok: false, error: "CUSTOMER_CREATE_FAILED" }, 400);
+  }
   const record = await env.DB.prepare("SELECT * FROM customers WHERE id = ?").bind(id).first();
   return tools.respond({ ok: true, data: record }, 201);
 }
@@ -441,6 +291,10 @@ async function updateCustomer({ req, env, params, tools }: RouteContext) {
   if (body.email !== undefined) {
     fields.push("email = ?");
     values.push(body.email?.toString().trim() || null);
+  }
+  if (body.status !== undefined) {
+    fields.push("status = ?");
+    values.push(body.status?.toString().trim() || null);
   }
   if (!fields.length) {
     return tools.respond({ ok: false, error: "NO_FIELDS" }, 400);
@@ -477,17 +331,26 @@ async function createSubscription({ req, env, tools }: RouteContext) {
   await ensureTable(env, "subscriptions");
   const body = await parseBody(req);
   const name = body?.name?.toString().trim();
-  const priceRaw = body?.price;
-  if (!name || priceRaw === undefined || priceRaw === null || Number.isNaN(Number(priceRaw))) {
-    return tools.respond({ ok: false, error: "NAME_AND_PRICE_REQUIRED" }, 400);
+  if (!name) {
+    return tools.respond({ ok: false, error: "NAME_REQUIRED" }, 400);
   }
-  const price = Number(priceRaw);
+  const description = body?.description?.toString().trim() || null;
+  const priceRaw = body?.price;
+  let price: number | null = null;
+  if (priceRaw !== undefined && priceRaw !== null && priceRaw !== "") {
+    const parsed = Number(priceRaw);
+    if (Number.isNaN(parsed)) {
+      return tools.respond({ ok: false, error: "INVALID_PRICE" }, 400);
+    }
+    price = parsed;
+  }
   const billingCycle = body?.billing_cycle?.toString().trim() || null;
-  const features = body?.features !== undefined ? JSON.stringify(body.features) : null;
-  const id = body?.id ? body.id.toString() : crypto.randomUUID();
+  const status = body?.status?.toString().trim() || "active";
+  const features = body?.features === undefined || body.features === null ? null : JSON.stringify(body.features);
+  const id = body?.id ? body.id.toString().trim() : crypto.randomUUID();
   await env.DB.prepare(
-    "INSERT INTO subscriptions (id, name, price, billing_cycle, features) VALUES (?, ?, ?, ?, ?)"
-  ).bind(id, name, price, billingCycle, features).run();
+    "INSERT INTO subscriptions (id, name, description, price, billing_cycle, status, features) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).bind(id, name, description, price, billingCycle, status, features).run();
   const record = await env.DB.prepare("SELECT * FROM subscriptions WHERE id = ?").bind(id).first();
   return tools.respond({ ok: true, data: record }, 201);
 }
@@ -513,16 +376,24 @@ async function updateSubscription({ req, env, params, tools }: RouteContext) {
     fields.push("name = ?");
     values.push(body.name?.toString().trim() || null);
   }
+  if (body.description !== undefined) {
+    fields.push("description = ?");
+    values.push(body.description?.toString().trim() || null);
+  }
   if (body.price !== undefined) {
-    if (body.price !== null && Number.isNaN(Number(body.price))) {
+    if (body.price !== null && body.price !== "" && Number.isNaN(Number(body.price))) {
       return tools.respond({ ok: false, error: "INVALID_PRICE" }, 400);
     }
     fields.push("price = ?");
-    values.push(body.price === null ? null : Number(body.price));
+    values.push(body.price === null || body.price === "" ? null : Number(body.price));
   }
   if (body.billing_cycle !== undefined) {
     fields.push("billing_cycle = ?");
     values.push(body.billing_cycle?.toString().trim() || null);
+  }
+  if (body.status !== undefined) {
+    fields.push("status = ?");
+    values.push(body.status?.toString().trim() || null);
   }
   if (body.features !== undefined) {
     fields.push("features = ?");
@@ -567,7 +438,9 @@ async function listCustomerSubscriptions({ req, env, tools }: RouteContext) {
     values.push(subscriptionId);
   }
   const sql = `SELECT * FROM customer_subscriptions${where.length ? ` WHERE ${where.join(" AND ")}` : ""} ORDER BY created_at DESC`;
-  const { results } = await env.DB.prepare(sql).bind(...values).all();
+  const stmt = env.DB.prepare(sql);
+  const query = values.length ? stmt.bind(...values) : stmt;
+  const { results } = await query.all();
   return tools.respond({ ok: true, data: results });
 }
 
@@ -582,7 +455,7 @@ async function createCustomerSubscription({ req, env, tools }: RouteContext) {
   const status = body?.status?.toString().trim() || "active";
   const startedAt = body?.started_at?.toString().trim() || null;
   const endedAt = body?.ended_at?.toString().trim() || null;
-  const id = body?.id ? body.id.toString() : crypto.randomUUID();
+  const id = body?.id ? body.id.toString().trim() : crypto.randomUUID();
   const customerExists = await env.DB.prepare("SELECT 1 FROM customers WHERE id = ?").bind(customerId).first();
   const subscriptionExists = await env.DB.prepare("SELECT 1 FROM subscriptions WHERE id = ?").bind(subscriptionId).first();
   if (!customerExists || !subscriptionExists) {
@@ -667,12 +540,13 @@ async function createRiskConfig({ req, env, tools }: RouteContext) {
   await ensureTable(env, "risk_configs");
   const body = await parseBody(req);
   const name = body?.name?.toString().trim() || null;
-  const limits = body?.limits ?? {};
+  const limits = normalizeLimits(body?.limits);
   const isPublished = toBoolean(body?.is_published);
-  const id = body?.id ? body.id.toString() : crypto.randomUUID();
+  const id = body?.id ? body.id.toString().trim() : crypto.randomUUID();
+  const publishedAt = isPublished ? new Date().toISOString() : null;
   await env.DB.prepare(
     "INSERT INTO risk_configs (id, name, limits, is_published, published_at) VALUES (?, ?, ?, ?, ?)"
-  ).bind(id, name, JSON.stringify(limits ?? {}), isPublished ? 1 : 0, isPublished ? new Date().toISOString() : null).run();
+  ).bind(id, name, JSON.stringify(limits ?? {}), isPublished ? 1 : 0, publishedAt).run();
   const record = await env.DB.prepare(
     "SELECT * FROM risk_configs WHERE id = ?"
   ).bind(id).first();
@@ -702,7 +576,7 @@ async function updateRiskConfig({ req, env, params, tools }: RouteContext) {
   }
   if (body.limits !== undefined) {
     fields.push("limits = ?");
-    values.push(JSON.stringify(body.limits ?? {}));
+    values.push(JSON.stringify(normalizeLimits(body.limits)));
   }
   if (body.is_published !== undefined) {
     const flag = toBoolean(body.is_published);
@@ -734,12 +608,19 @@ async function deleteRiskConfig({ env, params, tools }: RouteContext) {
   return new Response(null, { status: 204, headers: tools.corsHeaders });
 }
 
-async function getActiveRiskLimits(env: Env) {
+async function getPublishedRiskLimits({ env, tools }: RouteContext) {
+  const config = await getPublishedRiskConfig(env);
+  if (!config) {
+    return tools.respond({ ok: false, error: "NO_PUBLISHED_LIMITS" }, 404);
+  }
+  return tools.respond({ ok: true, data: mapRiskRow(config) });
+}
+
+async function getPublishedRiskConfig(env: Env) {
   await ensureTable(env, "risk_configs");
-  const record = await env.DB.prepare(
+  return env.DB.prepare(
     "SELECT * FROM risk_configs WHERE is_published = 1 ORDER BY published_at DESC LIMIT 1"
   ).first();
-  return record ? parseLimits(record.limits) : null;
 }
 
 async function ensureTable(env: Env, table: keyof typeof ensureTables) {
@@ -782,6 +663,7 @@ async function ensureCustomersTable(env: Env) {
       id TEXT PRIMARY KEY,
       name TEXT,
       email TEXT UNIQUE,
+      status TEXT DEFAULT 'active',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`
@@ -793,8 +675,10 @@ async function ensureSubscriptionsTable(env: Env) {
     `CREATE TABLE IF NOT EXISTS subscriptions (
       id TEXT PRIMARY KEY,
       name TEXT,
+      description TEXT,
       price REAL,
       billing_cycle TEXT,
+      status TEXT DEFAULT 'active',
       features TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -848,6 +732,11 @@ async function parseBody(req: Request): Promise<Record<string, any> | null> {
     return Object.fromEntries((await req.formData()).entries());
   }
   return null;
+}
+
+function normalizeLimits(limits: unknown) {
+  if (!limits || typeof limits !== "object") return {} as Record<string, any>;
+  return limits as Record<string, any>;
 }
 
 function parseLimits(limits: string | null | undefined) {
