@@ -1,5 +1,10 @@
+import { fileURLToPath } from 'node:url';
+
 import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
+
+const assetsDir = fileURLToPath(new URL('../../packages/assets/goldshore', import.meta.url));
+const themeDir = fileURLToPath(new URL('../../packages/theme/src', import.meta.url));
 
 export default defineConfig({
   output: 'server',
@@ -11,6 +16,8 @@ export default defineConfig({
       alias: {
         'node:crypto': false,
         crypto: false,
+        '@goldshore/assets': assetsDir,
+        '@goldshore/theme': themeDir,
       },
     },
     optimizeDeps: {
