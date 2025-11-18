@@ -4,10 +4,13 @@ import path from "node:path";
 import YAML from "yaml";
 import { commentOnPR, createFixBranchAndPR, findOpenConflicts, openOpsIssue } from "./helpers/github";
 import {
+  bindPagesDomain,
   fetchWorkerRoute,
   getDNSRecords,
   getPagesProjectBuildStatus,
-  getWorkerBindings
+  getWorkerBindings,
+  probeHttpsHost,
+  triggerPagesDeployment
 } from "./helpers/cloudflare";
 
 
@@ -16,6 +19,10 @@ type PagesRule = { repo: string; path: string };
 type DNSRequirement = { name: string; type: string; contains?: string };
 
 type PagesCheck = { type: "pages_build_status"; project: string };
+
+type PagesDomainTarget = { project: string; host: string; domains: string[] };
+
+type PagesDomainRecoveryCheck = { type: "pages_domain_recovery"; targets: PagesDomainTarget[] };
 
 type WorkerCheck = {
   type: "worker_health";
@@ -26,7 +33,7 @@ type WorkerCheck = {
 
 type DNSCheck = { type: "dns_records"; required: DNSRequirement[] };
 
-type CloudflareCheck = PagesCheck | WorkerCheck | DNSCheck;
+type CloudflareCheck = PagesCheck | WorkerCheck | DNSCheck | PagesDomainRecoveryCheck;
 
 function loadConfig() {
   const pJson = path.join(process.cwd(), "infra/cron/config.json");
@@ -165,9 +172,88 @@ async function checkCloudflare() {
         }
       }
     }
+    if (check.type === "pages_domain_recovery") {
+      for (const target of check.targets) {
+        let initialError: string | null = null;
+        try {
+          const response = await probeHttpsHost(target.host);
+          if (!response.ok) {
+            const body = await response.text();
+            initialError = `Initial probe returned HTTP ${response.status}.${formatBodyPreview(body)}`;
+          } else {
+            continue;
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          initialError = `Initial probe failed: ${message}`;
+        }
+
+        const remediationSteps: string[] = [];
+        if (initialError) remediationSteps.push(initialError);
+        for (const domain of target.domains) {
+          try {
+            const res = await bindPagesDomain(target.project, domain);
+            remediationSteps.push(
+              `Rebound domain \`${domain}\` (status: ${res.status ?? "unknown"}).`
+            );
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            remediationSteps.push(`Failed to bind \`${domain}\`: ${message}`);
+          }
+        }
+
+        try {
+          const deployment = await triggerPagesDeployment(target.project);
+          remediationSteps.push(`Triggered deployment \`${deployment.id ?? "unknown"}\`.`);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          remediationSteps.push(`Failed to trigger deployment: ${message}`);
+        }
+
+        let recovered = false;
+        try {
+          const verification = await probeHttpsHost(target.host);
+          const verificationBody = await verification.text();
+          if (verification.ok) {
+            recovered = true;
+            remediationSteps.push("Post-remediation probe succeeded.");
+          } else {
+            remediationSteps.push(
+              `Post-remediation probe returned HTTP ${verification.status}.${formatBodyPreview(
+                verificationBody
+              )}`
+            );
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          remediationSteps.push(`Post-remediation probe failed: ${message}`);
+        }
+
+        if (recovered) {
+          log(`Recovered Pages domain ${target.host}`);
+        } else {
+          const details = remediationSteps.join("\n\n");
+          const domainSection = target.domains.length
+            ? `Domains:\n${target.domains.map(domain => `- \`${domain}\``).join("\n")}`
+            : "Domains: _none defined_";
+          await openOpsIssue(
+            org,
+            "goldshore",
+            `Pages domain recovery failed: ${target.host}`,
+            `Project: \`${target.project}\`\nHost: \`${target.host}\`\n\n${domainSection}\n\nRemediation log:\n\n${details}`,
+            cfg.ai_agent.triage_labels
+          );
+        }
+      }
+    }
     if (check.type === "worker_health") {
       try {
-        const { response, url } = await fetchWorkerRoute(check.script, check.path);
+        const { response, url } = await fetchWorkerRoute(
+          check.script,
+          check.path,
+          undefined,
+          check.domain_override
+        );
         const bodyText = await response.text();
         if (!response.ok) {
           await openWorkerHealthIncident(

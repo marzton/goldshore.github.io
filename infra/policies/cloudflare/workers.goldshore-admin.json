@@ -17,7 +17,7 @@
       "services": [
         {
           "binding": "API",
-          "service": "goldshore-api-gateway",
+          "service": "goldshore-api",
           "environment": "production"
         }
       ]
@@ -36,7 +36,7 @@
       "services": [
         {
           "binding": "API",
-          "service": "goldshore-api-gateway",
+          "service": "goldshore-api",
           "environment": "preview"
         }
       ]
@@ -56,8 +56,10 @@
   },
   "logpush": {
     "dataset": "http_requests",
-    "destination": "r2://goldshore-logs/admin/${DATE}.json"
-    "destination": "r2://goldshore-observability/admin-gateway/${DATE}.ndjson",
+    "destinations": [
+      "r2://goldshore-logs/admin/${DATE}.json",
+      "r2://goldshore-observability/admin-gateway/${DATE}.ndjson"
+    ],
     "ownership_challenge": "${LOGPUSH_ADMIN_TOKEN}"
   }
 }
