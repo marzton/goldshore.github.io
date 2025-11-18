@@ -1,6 +1,4 @@
 name = "goldshore-api"
-# tsc currently emits the worker entrypoint under dist/src, so Wrangler must
-# load that bundled script.
 main = "dist/src/index.js"
 compatibility_date = "2024-11-20"
 minify = true
