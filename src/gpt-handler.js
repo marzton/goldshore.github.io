@@ -21,6 +21,7 @@ const ALLOWED_CHAT_COMPLETION_OPTIONS = new Set([
   "stop",
   "stream",
   "temperature",
+  "top_logprobs",
   "top_p",
   "tools",
   "tool_choice",
@@ -42,8 +43,8 @@ function timingSafeEqual(a, b) {
   }
 
   let mismatch = 0;
-  for (let i = 0; i < encodedA.length; i += 1) {
-    mismatch |= encodedA[i] ^ encodedB[i];
+  for (let index = 0; index < encodedA.length; index += 1) {
+    mismatch |= encodedA[index] ^ encodedB[index];
   }
 
   return mismatch === 0;
@@ -98,17 +99,21 @@ function resolveAllowedOrigin(requestOrigin, allowedOrigins) {
   try {
     parsedOrigin = new URL(normalized).origin;
   } catch (error) {
-    return null;
+    parsedOrigin = null;
   }
 
   for (const allowed of allowedOrigins) {
     if (allowed === "*") {
-      return parsedOrigin;
+      return parsedOrigin ?? normalized;
+    }
+
+    if (allowed === normalized) {
+      return normalized;
     }
 
     try {
       const allowedOrigin = new URL(allowed).origin;
-      if (allowedOrigin === parsedOrigin) {
+      if (parsedOrigin && parsedOrigin === allowedOrigin) {
         return parsedOrigin;
       }
     } catch (error) {
@@ -200,6 +205,13 @@ function authorizeRequest(request, env, origin) {
   }
 
   if (!providedToken) {
+    const proxyHeader = request.headers.get("X-GPT-Proxy-Token") ?? "";
+    if (proxyHeader.trim() !== "") {
+      providedToken = proxyHeader.trim();
+    }
+  }
+
+  if (!providedToken) {
     return errorResponse("Missing authentication token.", 401, undefined, origin);
   }
 
@@ -231,7 +243,7 @@ function normalizeMessage(message, index) {
     if (content.trim() === "") {
       throw new Error(`messages[${index}].content must not be empty.`);
     }
-    normalizedContent = content;
+    normalizedContent = content.trim();
   } else if (Array.isArray(content)) {
     const parts = content
       .map((item, partIndex) => {
@@ -253,7 +265,7 @@ function normalizeMessage(message, index) {
     if (content.text.trim() === "") {
       throw new Error(`messages[${index}].content.text must not be empty.`);
     }
-    normalizedContent = content.text;
+    normalizedContent = content.text.trim();
   } else {
     throw new Error(`messages[${index}].content must be a string or text object.`);
   }
@@ -299,7 +311,9 @@ function buildChatCompletionPayload(payload, allowedModels) {
       },
     ];
   } else {
-    throw new Error("Request body must include either a 'messages' array or a non-empty 'prompt' string.");
+    throw new Error(
+      "Request body must include either a 'messages' array or a non-empty 'prompt' string.",
+    );
   }
 
   if (typeof stream !== "undefined") {
@@ -364,12 +378,37 @@ async function handlePost(request, env, corsOrigin) {
       body: JSON.stringify(requestBody),
     });
 
+    if (requestBody.stream) {
+      if (!upstream.ok) {
+        const errorText = await upstream.text();
+        let details = errorText;
+        try {
+          details = JSON.parse(errorText);
+        } catch (parseError) {
+          // keep raw text when JSON parsing fails
+        }
+        return errorResponse("OpenAI API request failed.", upstream.status, details, corsOrigin);
+      }
+
+      const headers = buildCorsHeaders(corsOrigin);
+      const contentType = upstream.headers.get("content-type");
+      if (contentType) {
+        headers.set("content-type", contentType);
+      }
+      headers.set("cache-control", "no-store");
+
+      return new Response(upstream.body, {
+        status: upstream.status,
+        headers,
+      });
+    }
+
     const text = await upstream.text();
     let data;
     try {
       data = text ? JSON.parse(text) : {};
     } catch (error) {
-      return errorResponse("Unexpected response from OpenAI API.", 502, text, corsOrigin);
+      return errorResponse("Unexpected response from OpenAI API.", 502, { details: text }, corsOrigin);
     }
 
     if (!upstream.ok) {
@@ -381,7 +420,7 @@ async function handlePost(request, env, corsOrigin) {
     return errorResponse(
       "Failed to contact OpenAI API.",
       502,
-      error instanceof Error ? error.message : String(error),
+      { details: error instanceof Error ? error.message : String(error) },
       corsOrigin,
     );
   }
