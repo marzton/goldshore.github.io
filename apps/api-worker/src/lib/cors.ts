@@ -1,4 +1,4 @@
-export function corsHeaders(origin: string = "*") {
+export function corsHeaders(origin: string = "*"): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",

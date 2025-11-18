@@ -1,4 +1,5 @@
 import { handleWebhook, type WebhookEnv } from "./webhook";
+import { corsHeaders } from "./lib/cors";
 
 export interface Env extends WebhookEnv {}
 
