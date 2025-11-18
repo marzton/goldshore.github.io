@@ -117,7 +117,9 @@ function resolveAllowedOrigin(requestOrigin, allowedOrigins) {
         return parsedOrigin;
       }
     } catch (error) {
-      // Skip invalid allowlist entries.
+      if (allowed === normalized) {
+        return normalized;
+      }
     }
   }
 
@@ -175,7 +177,7 @@ function validateOrigin(request, env) {
 
   if (originHeader && !resolvedOrigin) {
     return {
-      errorResponse: errorResponse("Origin not allowed.", 403, undefined, originHeader),
+      errorResponse: errorResponse("Origin not allowed.", 403, undefined, originHeader.trim()),
     };
   }
 

@@ -1,6 +1,7 @@
-# Cloudflare Pages configuration. Worker deployments should use wrangler.worker.toml.
-name = "goldshore-web"
-pages_build_output_dir = "./apps/goldshore-web/dist"
+# Cloudflare Worker router for goldshore.org. The marketing site lives on
+# Cloudflare Pages while this Worker owns the custom domains and GPT proxy.
+name = "goldshore-web-router"
+main = "src/router.js"
 compatibility_date = "2025-10-05"
 
 [vars]
@@ -9,10 +10,18 @@ PRODUCTION_ASSETS = "https://goldshore-org.pages.dev"
 PREVIEW_ASSETS = "https://goldshore-org-preview.pages.dev"
 DEV_ASSETS = "https://goldshore-org-dev.pages.dev"
 GPT_ALLOWED_ORIGINS = "https://goldshore.org, https://www.goldshore.org, https://preview.goldshore.org, https://dev.goldshore.org, https://trade.goldshore.org"
-
 # Secrets such as FORMSPREE_ENDPOINT, TURNSTILE_SECRET, OPENAI_API_KEY, and
 # GPT_SHARED_SECRET (or legacy GPT_PROXY_SECRET) are provided via
 # `wrangler secret put …` or `.dev.vars` in local development.
+
+[observability]
+enabled = true
+
+[env.production]
+routes = [
+  "goldshore.org/*",
+  "www.goldshore.org/*",
+]
 
 [env.production.vars]
 ASSETS_ORIGIN = "https://goldshore.org"
@@ -20,4 +29,33 @@ CF_ACCESS_AUD = "3d5916af31a595ca00d8b1ab0157361a953779d939d9df2f63b1802b87a0248
 CF_ACCESS_ISS = "https://rmarston.cloudflareaccess.com"
 CF_ACCESS_JWKS_URL = "https://rmarston.cloudflareaccess.com/cdn-cgi/access/certs"
 
-# (Only add bindings you actually use)
+[[env.production.services]]
+binding = "API"
+service = "goldshore-api"
+environment = "production"
+
+[[env.production.analytics_engine_datasets]]
+binding = "WEB_ANALYTICS"
+dataset = "goldshore-web-events"
+
+[env.preview]
+routes = ["preview.goldshore.org/*"]
+
+[env.preview.vars]
+ASSETS_ORIGIN = "https://preview.goldshore.org"
+
+[[env.preview.services]]
+binding = "API"
+service = "goldshore-api"
+environment = "preview"
+
+[env.development]
+routes = ["dev.goldshore.org/*"]
+
+[env.development.vars]
+ASSETS_ORIGIN = "https://dev.goldshore.org"
+
+[[env.development.services]]
+binding = "API"
+service = "goldshore-api"
+environment = "development"
