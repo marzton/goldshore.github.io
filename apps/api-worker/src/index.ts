@@ -1,8 +1,6 @@
 import { handleWebhook, type WebhookEnv } from "./webhook";
 import { corsHeaders } from "./lib/cors";
 
-export interface Env extends WebhookEnv {}
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface SessionRecord {
   id: string;
@@ -30,7 +28,7 @@ interface EventQueueMessage {
   metadata?: Record<string, unknown>;
 }
 
-export interface Env {
+export interface Env extends WebhookEnv {
   KV_SESSIONS: KVNamespace;
   KV_CACHE: KVNamespace;
   DO_SESSIONS: DurableObjectNamespace;
@@ -52,7 +50,7 @@ const JSON_HEADERS: Record<string, string> = {
   "content-type": "application/json; charset=utf-8"
 };
 
-function resolveCorsOrigin(request: Request, env: Env): string {
+export function resolveCorsOrigin(request: Request, env: Env): string {
   const headerOrigin = request.headers.get("Origin") ?? "";
   const configured = (env.GOLDSHORE_CORS || env.GOLDSHORE_ORIGIN || "*")
     .split(",")
@@ -70,7 +68,7 @@ function resolveCorsOrigin(request: Request, env: Env): string {
   return configured[0] ?? "*";
 }
 
-function withCors(origin: string, init?: ResponseInit): ResponseInit {
+export function withCors(origin: string, init?: ResponseInit): ResponseInit {
   const headers = new Headers(init?.headers ?? {});
   const cors = corsHeaders(origin);
   Object.entries(cors).forEach(([key, value]) => headers.set(key, value));
@@ -180,7 +178,7 @@ interface RateLimitResult {
   reset: number;
 }
 
-async function enforceRateLimit(identifier: string, env: Env): Promise<RateLimitResult> {
+export async function enforceRateLimit(identifier: string, env: Env): Promise<RateLimitResult> {
   const limit = Number(env.RATE_LIMIT_MAX ?? DEFAULT_RATE_LIMIT) || DEFAULT_RATE_LIMIT;
   const windowSeconds = Number(env.RATE_LIMIT_WINDOW ?? DEFAULT_RATE_LIMIT_WINDOW) || DEFAULT_RATE_LIMIT_WINDOW;
   const now = Date.now();
@@ -278,7 +276,7 @@ function rateLimitExceededResponse(origin: string, result: RateLimitResult, limi
   return new Response(JSON.stringify({ error: "Rate limit exceeded", reset: result.reset }), corsWrapped);
 }
 
-async function routeRequest(
+export async function routeRequest(
   request: Request,
   env: Env,
   ctx: ExecutionContext
