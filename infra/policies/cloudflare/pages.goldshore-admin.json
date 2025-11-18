@@ -22,7 +22,8 @@
       "environment_variables": {
         "NODE_VERSION": "20",
         "ACCESS_TAG": "goldshore-admin",
-        "WORKER_HOSTNAME": "admin.goldshore.org"
+        "WORKER_HOSTNAME": "admin.goldshore.org",
+        "API_BASE_URL": "https://api.goldshore.org"
       },
       "access_policies": [
         {
@@ -61,7 +62,7 @@
     }
   },
   "build_config": {
-    "build_command": "npm run build:admin",
-    "destination_dir": "apps/admin/dist"
+    "build_command": "pnpm --filter @goldshore/admin build",
+    "destination_dir": "apps/goldshore-admin/dist"
   }
 }
