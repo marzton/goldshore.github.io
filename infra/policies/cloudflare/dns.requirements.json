@@ -23,6 +23,33 @@
     },
     {
       "type": "CNAME",
+      "name": "admin",
+      "content": "goldshore-admin.pages.dev",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Admin console served through the Access-gated Pages deployment."
+    },
+    {
+      "type": "CNAME",
+      "name": "admin-preview",
+      "content": "goldshore-admin.pages.dev",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Preview branch for the admin console."
+    },
+    {
+      "type": "CNAME",
+      "name": "admin-dev",
+      "content": "goldshore-admin.pages.dev",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Developer sandbox for the admin console."
+    },
+    {
+      "type": "CNAME",
       "name": "preview",
       "content": "goldshore-org-preview.pages.dev",
       "proxied": true,
@@ -38,6 +65,33 @@
       "ttl": 3600,
       "required": true,
       "note": "Developer sandbox mapped to dev Pages environment."
+    },
+    {
+      "type": "CNAME",
+      "name": "api",
+      "content": "goldshore-api.goldshore.workers.dev",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Primary API Worker routing for production traffic."
+    },
+    {
+      "type": "CNAME",
+      "name": "api-preview",
+      "content": "goldshore-api.goldshore.workers.dev",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Preview deployment for API feature validation."
+    },
+    {
+      "type": "CNAME",
+      "name": "api-dev",
+      "content": "goldshore-api.goldshore.workers.dev",
+      "proxied": true,
+      "ttl": 3600,
+      "required": true,
+      "note": "Developer sandbox for API Worker iteration."
     }
   ]
 }
