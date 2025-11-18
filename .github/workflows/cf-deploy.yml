@@ -1,3 +1,4 @@
+# NOTE: Mirrored from infra/github/actions/workflows/cf-deploy.yml
 name: Deploy goldshore-api
 on:
   push:

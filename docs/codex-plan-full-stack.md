@@ -23,9 +23,9 @@ Before running the plan inside Codex, make sure the following secrets are config
 3. Execute the plan. It is idempotent and safe to re-run.
 4. Ensure the repo configuration matches the bindings expected by the plan:
    - `WEB_PROJECT=goldshore-web`
-   - `ADMIN_PROJECT=goldshore-monorepo`
+  - `ADMIN_PROJECT=goldshore-admin`
    - `API_WORKER=goldshore-api`
-   - Pages builds output to `apps/web/dist` and `apps/admin/dist`
+  - Pages builds output to `apps/goldshore-web/dist` and `apps/goldshore-admin/dist`
    - Wrangler environments manage D1, KV, R2, Queues, and Durable Object migrations per environment.
 
 ## Outputs

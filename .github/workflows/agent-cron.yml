@@ -1,3 +1,4 @@
+# NOTE: Mirrored from infra/github/actions/workflows/agent-cron.yml
 name: agent-cron
 on:
   schedule:

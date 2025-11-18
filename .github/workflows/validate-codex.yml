@@ -1,3 +1,4 @@
+# NOTE: Mirrored from infra/github/actions/workflows/validate-codex.yml
 name: Validate Codex access
 
 on:
