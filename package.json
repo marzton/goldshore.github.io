@@ -19,7 +19,8 @@
     "enforce:dns": "bash infra/scripts/enforce-dns.sh",
     "agent:poll": "tsx infra/cron/agent_poll.ts",
     "agent:dryrun": "DRY_RUN=1 tsx infra/cron/agent_poll.ts",
-    "validate:codex-config": "tsx infra/limits/validate_codex_config.ts"
+    "validate:codex-config": "tsx infra/limits/validate_codex_config.ts",
+    "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
     "yaml": "^2.6.0"
