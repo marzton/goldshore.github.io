@@ -36,8 +36,16 @@ describe('auth', () => {
       json: () => Promise.resolve(mockJwks),
     });
 
+    vi.spyOn(crypto.subtle, 'importKey').mockResolvedValue({} as CryptoKey);
     vi.spyOn(crypto.subtle, 'verify').mockResolvedValue(true);
 
-    await expect(verifyJwt(mockJwt, mockEnv)).resolves.not.toThrow();
+    await expect(verifyJwt(mockJwt, mockEnv)).resolves.toEqual(
+      expect.objectContaining({
+        sub: '1234567890',
+        name: 'John Doe',
+        aud: mockEnv.JWT_AUDIENCE,
+        iss: mockEnv.JWT_ISSUER,
+      })
+    );
   });
 });
