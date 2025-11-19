@@ -1,8 +1,7 @@
 import { allowOrigin, corsHeaders, handleOptions } from "./lib/cors";
-import type { WebhookEnv } from "./webhook";
 import { handleGithubCallback, handleGithubWebhook } from "./routes/github";
-
-export interface Env extends WebhookEnv {}
+import app from "./app.ts";
+import type { Env, EventQueueMessage } from "./types.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface SessionRecord {
@@ -20,30 +19,6 @@ interface JwtClaims {
   nbf?: number;
   scope?: string;
   [key: string]: unknown;
-}
-
-interface EventQueueMessage {
-  id: string;
-  type: string;
-  payload: Record<string, unknown>;
-  subject?: string;
-  issuedAt: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface Env {
-  KV_SESSIONS: KVNamespace;
-  KV_CACHE: KVNamespace;
-  DO_SESSIONS: DurableObjectNamespace;
-  Q_EVENTS: Queue<EventQueueMessage>;
-  GOLDSHORE_ENV: string;
-  GOLDSHORE_ORIGIN?: string;
-  GOLDSHORE_CORS?: string;
-  GOLDSHORE_JWT_SECRET: string;
-  JWT_AUDIENCE?: string;
-  JWT_ISSUER?: string;
-  RATE_LIMIT_MAX?: string;
-  RATE_LIMIT_WINDOW?: string;
 }
 
 const DEFAULT_RATE_LIMIT = 120;
@@ -356,6 +331,11 @@ async function routeRequest(
     }
     await env.KV_CACHE.put(key, JSON.stringify(body.value ?? null));
     return jsonResponse({ stored: true, key }, origin, { status: 201, headers });
+  }
+
+  const honoResponse = await app.fetch(request, env, ctx);
+  if (honoResponse.status !== 404) {
+    return honoResponse;
   }
 
   return errorResponse("Not Found", origin, 404);
