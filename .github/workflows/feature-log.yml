@@ -1,0 +1,30 @@
+name: Append feature notes to AGENT_INSTRUCTIONS
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  log-feature:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Append feature note
+        if: contains(github.event.pull_request.body, '#feature')
+        run: |
+          echo "" >> AGENT_INSTRUCTIONS.md
+          echo "### ${GITHUB_REPOSITORY}" >> AGENT_INSTRUCTIONS.md
+          echo "*   **$(date -u +'%Y-%m-%d')** – ${GITHUB_ACTOR}: ${GITHUB_HEAD_REF}" >> AGENT_INSTRUCTIONS.md
+          echo "" >> AGENT_INSTRUCTIONS.md
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add AGENT_INSTRUCTIONS.md
+          git commit -m "chore: update AGENT_INSTRUCTIONS from PR #${{ github.event.pull_request.number }}" || exit 0
+          git push

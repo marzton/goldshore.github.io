@@ -1,4 +1,4 @@
-name = "goldshore-api"
+name = "goldshore-gateway"
 main = "src/index.ts"
 compatibility_date = "2025-10-05"
 workers_dev = true
@@ -7,7 +7,7 @@ workers_dev = true
 CF_TEAM_DOMAIN = "goldshore"
 API_ENVIRONMENT = "dev"
 DB_NAME = "goldshore-db"
-KV_NAME = "goldshore-api-kv"
+KV_NAME = "goldshore-gateway-kv"
 AI_MODEL = "gpt-4o"
 GOLD_SHORE_VERSION = "0.1.0"
 
@@ -15,12 +15,12 @@ GOLD_SHORE_VERSION = "0.1.0"
 # PRODUCTION ENVIRONMENT
 # ======================================================================================
 [env.production]
-name = "goldshore-api-prod"
-routes = ["api.goldshore.org/*"]
+name = "goldshore-gateway-prod"
+routes = ["gateway.goldshore.org/*"]
 
 [[env.production.kv_namespaces]]
 binding = "STORE"
-id = "xxxx-prod-api-kv-id"
+id = "xxxx-prod-gateway-kv-id"
 
 [[env.production.r2_buckets]]
 binding = "ASSETS"
@@ -35,8 +35,8 @@ database_id = "xxxx-prod-db-id"
 binding = "AI"
 
 [[env.production.services]]
-binding = "gateway"
-service = "goldshore-gateway-prod"
+binding = "api"
+service = "goldshore-api-prod"
 
 [env.production.vars]
 API_ENVIRONMENT = "production"
@@ -45,12 +45,12 @@ API_ENVIRONMENT = "production"
 # PREVIEW ENVIRONMENT
 # ======================================================================================
 [env.preview]
-name = "goldshore-api-preview"
-routes = ["api-preview.goldshore.org/*"]
+name = "goldshore-gateway-preview"
+routes = ["gateway-preview.goldshore.org/*"]
 
 [[env.preview.kv_namespaces]]
 binding = "STORE"
-id = "xxxx-preview-api-kv-id"
+id = "xxxx-preview-gateway-kv-id"
 
 [[env.preview.r2_buckets]]
 binding = "ASSETS"
@@ -65,8 +65,8 @@ database_id = "xxxx-preview-db-id"
 binding = "AI"
 
 [[env.preview.services]]
-binding = "gateway"
-service = "goldshore-gateway-preview"
+binding = "api"
+service = "goldshore-api-preview"
 
 [env.preview.vars]
 API_ENVIRONMENT = "preview"
