@@ -69,50 +69,6 @@
         }
       }
     },
-    {
-      "name": "goldshore-admin",
-      "production_branch": "main",
-      "preview_branches": [
-        "admin-preview"
-      ],
-      "custom_domains": [
-        {
-          "hostname": "admin.goldshore.org",
-          "environment": "production"
-        },
-        {
-          "hostname": "admin-preview.goldshore.org",
-          "environment": "preview"
-        },
-        {
-          "hostname": "admin-dev.goldshore.org",
-          "environment": "development"
-        }
-      ],
-      "source": {
-        "type": "github",
-        "config": {
-          "owner": "goldshore",
-          "repo_name": "goldshore",
-          "production_branch": "main"
-        }
-      },
-      "deployment_configs": {
-        "production": {
-          "compatibility_date": "2024-02-19",
-          "environment_variables": {
-            "WORKER_HOSTNAME": "admin.goldshore.org",
-            "ACCESS_APP_AUD": "goldshore-admin"
-          }
-        },
-        "preview": {
-          "compatibility_date": "2024-02-19",
-          "environment_variables": {
-            "WORKER_HOSTNAME": "admin-preview.goldshore.org"
-          }
-        }
-      }
-    }
   ],
   "workers": [
     {
@@ -220,10 +176,9 @@
         "vars": {
           "GOLDSHORE_ENV": "production",
           "GOLDSHORE_ORIGIN": "https://goldshore.org",
-          "GOLDSHORE_CORS": "https://goldshore.org,https://www.goldshore.org,https://admin.goldshore.org,https://preview.goldshore.org,http://localhost:5173,http://127.0.0.1:5173",
+          "GOLDSHORE_CORS": "https://goldshore.org,https://www.goldshore.org,https://preview.goldshore.org,http://localhost:5173,http://127.0.0.1:5173",
           "FF_ENABLE_TRADING": "true",
           "FF_ENABLE_SENTIMENT": "true",
-          "ACCESS_AUD": "goldshore-admin",
           "CODEX_JWT_REQUIRED": "true",
           "CODEX_JWT_ALG": "HS256",
           "CODEX_JWT_ISS": "goldshore-api",
@@ -254,14 +209,5 @@
       }
     ]
   },
-  "access_applications": [
-    {
-      "name": "Goldshore Admin",
-      "domain": "admin.goldshore.org",
-      "aud": "goldshore-admin",
-      "policies": [
-        "infra/policies/cloudflare/pages.goldshore-admin.json"
-      ]
-    }
-  ]
+  "access_applications": []
 }

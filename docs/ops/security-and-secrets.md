@@ -2,4 +2,4 @@
 
 GitHub: protect main, limit GH_TOKEN scopes (repo, pull_request, issues).
 Cloudflare: least-privilege tokens; bindings declared in wrangler.toml; never hardcode secrets.
-Pages output dirs: apps/goldshore-web/dist (web), apps/goldshore-admin/dist (admin).
+Pages output dirs: apps/goldshore-web/dist (web).

@@ -1,7 +1,7 @@
 {
   "version": "3.9",
   "name": "GoldShore Full Stack: Prod + Preview + Dev (DNS, Pages, Access, API, Resources, Health, Snapshot)",
-  "description": "Idempotent setup for goldshore-web (public), goldshore-admin (admin via Access), goldshore-api (Workers) across production/preview/dev, with per-env resources and a stored manifest.",
+  "description": "Idempotent setup for goldshore-web (public), goldshore-api (Workers) across production/preview/dev, with per-env resources and a stored manifest.",
   "secrets_expected": [
     "CF_API_TOKEN",
     "CF_ACCOUNT_ID",
@@ -11,7 +11,6 @@
   "vars": {
     "ROOT_DOMAIN": "goldshore.org",
     "WEB_PROJECT": "goldshore-web",
-    "ADMIN_PROJECT": "goldshore-admin",
     "API_WORKER": "goldshore-api",
     "WORKERS_SUBDOMAIN": "goldshore",
     "HOME_IP_CIDR": "108.54.251.213/32",
@@ -20,9 +19,6 @@
     "WEB_WWW_PROD": "www.goldshore.org",
     "WEB_PREVIEW": "preview.goldshore.org",
     "WEB_DEV": "dev.goldshore.org",
-    "ADMIN_PROD": "admin.goldshore.org",
-    "ADMIN_PREVIEW": "admin-preview.goldshore.org",
-    "ADMIN_DEV": "admin-dev.goldshore.org",
     "API_PROD": "api.goldshore.org",
     "API_PREVIEW": "api-preview.goldshore.org",
     "API_DEV": "api-dev.goldshore.org",
@@ -53,11 +49,8 @@
     ],
     "CORS_ORIGINS": [
       "https://goldshore.org",
-      "https://admin.goldshore.org",
       "https://preview.goldshore.org",
-      "https://admin-preview.goldshore.org",
-      "https://dev.goldshore.org",
-      "https://admin-dev.goldshore.org"
+      "https://dev.goldshore.org"
     ]
   },
   "default_headers": {
@@ -105,27 +98,6 @@
           "type": "CNAME",
           "name": "${WEB_DEV}",
           "content": "${WEB_PROJECT}.pages.dev",
-          "proxied": true,
-          "ttl": 1
-        },
-        {
-          "type": "CNAME",
-          "name": "${ADMIN_PROD}",
-          "content": "${ADMIN_PROJECT}.pages.dev",
-          "proxied": true,
-          "ttl": 1
-        },
-        {
-          "type": "CNAME",
-          "name": "${ADMIN_PREVIEW}",
-          "content": "${ADMIN_PROJECT}.pages.dev",
-          "proxied": true,
-          "ttl": 1
-        },
-        {
-          "type": "CNAME",
-          "name": "${ADMIN_DEV}",
-          "content": "${ADMIN_PROJECT}.pages.dev",
           "proxied": true,
           "ttl": 1
         },
@@ -179,24 +151,6 @@
         {
           "op": "PUT",
           "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${WEB_PROJECT}/domains/${WEB_DEV}"
-        }
-      ]
-    },
-    {
-      "id": "attach_admin_domains",
-      "op": "BATCH",
-      "calls": [
-        {
-          "op": "PUT",
-          "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${ADMIN_PROJECT}/domains/${ADMIN_PROD}"
-        },
-        {
-          "op": "PUT",
-          "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${ADMIN_PROJECT}/domains/${ADMIN_PREVIEW}"
-        },
-        {
-          "op": "PUT",
-          "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${ADMIN_PROJECT}/domains/${ADMIN_DEV}"
         }
       ]
     },
@@ -291,182 +245,6 @@
       "save_as": {
         "ACCESS_APPS": ".result"
       }
-    },
-    {
-      "id": "access_admin_upsert",
-      "op": "BATCH",
-      "calls": [
-        {
-          "op": "UPSERT",
-          "match_from": "ACCESS_APPS",
-          "match_when": "(.domain==\"${ADMIN_PROD}\")",
-          "create": {
-            "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps",
-            "method": "POST",
-            "json": {
-              "type": "self_hosted",
-              "name": "GoldShore Admin (Prod)",
-              "domain": "${ADMIN_PROD}",
-              "session_duration": "24h",
-              "app_launcher_visible": true
-            }
-          },
-          "update": {
-            "endpoint_template": "/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${item.uid}",
-            "method": "PUT",
-            "json": {
-              "type": "self_hosted",
-              "name": "GoldShore Admin (Prod)",
-              "domain": "${ADMIN_PROD}",
-              "session_duration": "24h",
-              "app_launcher_visible": true
-            }
-          },
-          "save_as": {
-            "ADMIN_APP_UID_PROD": "(.id // .uid)"
-          }
-        },
-        {
-          "op": "UPSERT",
-          "match_from": "ACCESS_APPS",
-          "match_when": "(.domain==\"${ADMIN_PREVIEW}\")",
-          "create": {
-            "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps",
-            "method": "POST",
-            "json": {
-              "type": "self_hosted",
-              "name": "GoldShore Admin (Preview)",
-              "domain": "${ADMIN_PREVIEW}",
-              "session_duration": "24h",
-              "app_launcher_visible": false
-            }
-          },
-          "update": {
-            "endpoint_template": "/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${item.uid}",
-            "method": "PUT",
-            "json": {
-              "type": "self_hosted",
-              "name": "GoldShore Admin (Preview)",
-              "domain": "${ADMIN_PREVIEW}",
-              "session_duration": "24h",
-              "app_launcher_visible": false
-            }
-          },
-          "save_as": {
-            "ADMIN_APP_UID_PREVIEW": "(.id // .uid)"
-          }
-        },
-        {
-          "op": "UPSERT",
-          "match_from": "ACCESS_APPS",
-          "match_when": "(.domain==\"${ADMIN_DEV}\")",
-          "create": {
-            "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps",
-            "method": "POST",
-            "json": {
-              "type": "self_hosted",
-              "name": "GoldShore Admin (Dev)",
-              "domain": "${ADMIN_DEV}",
-              "session_duration": "24h",
-              "app_launcher_visible": false
-            }
-          },
-          "update": {
-            "endpoint_template": "/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${item.uid}",
-            "method": "PUT",
-            "json": {
-              "type": "self_hosted",
-              "name": "GoldShore Admin (Dev)",
-              "domain": "${ADMIN_DEV}",
-              "session_duration": "24h",
-              "app_launcher_visible": false
-            }
-          },
-          "save_as": {
-            "ADMIN_APP_UID_DEV": "(.id // .uid)"
-          }
-        }
-      ]
-    },
-    {
-      "id": "access_admin_policies",
-      "op": "BATCH",
-      "calls": [
-        {
-          "op": "PUT",
-          "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${ADMIN_APP_UID_PROD}/policies",
-          "json": [
-            {
-              "name": "Allow GoldShore (Prod)",
-              "precedence": 1,
-              "decision": "allow",
-              "include": {
-                "emails": ${ALLOWED_EMAILS},
-                "email_domains": ${ALLOWED_DOMAINS}
-              },
-              "require": {
-                "ip_ranges": [
-                  "${HOME_IP_CIDR}"
-                ]
-              }
-            },
-            {
-              "name": "Deny All",
-              "precedence": 999,
-              "decision": "deny",
-              "include": {
-                "everyone": true
-              }
-            }
-          ]
-        },
-        {
-          "op": "PUT",
-          "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${ADMIN_APP_UID_PREVIEW}/policies",
-          "json": [
-            {
-              "name": "Allow GoldShore (Preview)",
-              "precedence": 1,
-              "decision": "allow",
-              "include": {
-                "emails": ${ALLOWED_EMAILS},
-                "email_domains": ${ALLOWED_DOMAINS}
-              }
-            },
-            {
-              "name": "Deny All",
-              "precedence": 999,
-              "decision": "deny",
-              "include": {
-                "everyone": true
-              }
-            }
-          ]
-        },
-        {
-          "op": "PUT",
-          "endpoint": "/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${ADMIN_APP_UID_DEV}/policies",
-          "json": [
-            {
-              "name": "Allow GoldShore (Dev)",
-              "precedence": 1,
-              "decision": "allow",
-              "include": {
-                "emails": ${ALLOWED_EMAILS},
-                "email_domains": ${ALLOWED_DOMAINS}
-              }
-            },
-            {
-              "name": "Deny All",
-              "precedence": 999,
-              "decision": "deny",
-              "include": {
-                "everyone": true
-              }
-            }
-          ]
-        }
-      ]
     },
     {
       "id": "access_api_upsert",
@@ -838,16 +616,6 @@
       ]
     },
     {
-      "id": "check_admin_prod",
-      "op": "HTTP_CHECK",
-      "url": "https://${ADMIN_PROD}",
-      "expect_status": [
-        200,
-        302,
-        403
-      ]
-    },
-    {
       "id": "check_api_prod",
       "op": "HTTP_CHECK",
       "url": "https://${API_PROD}/health",
@@ -869,16 +637,6 @@
         200,
         301,
         302
-      ]
-    },
-    {
-      "id": "check_admin_preview",
-      "op": "HTTP_CHECK",
-      "url": "https://${ADMIN_PREVIEW}",
-      "expect_status": [
-        200,
-        302,
-        403
       ]
     },
     {
@@ -906,16 +664,6 @@
       ]
     },
     {
-      "id": "check_admin_dev",
-      "op": "HTTP_CHECK",
-      "url": "https://${ADMIN_DEV}",
-      "expect_status": [
-        200,
-        302,
-        403
-      ]
-    },
-    {
       "id": "check_api_dev",
       "op": "HTTP_CHECK",
       "url": "https://${API_DEV}/health",
@@ -932,7 +680,7 @@
     {
       "id": "manifest_build",
       "op": "COMPUTE",
-      "expression": "{\n        now: (now|tojson),\n        domains: {\n          web: { prod: env.WEB_PROD, preview: env.WEB_PREVIEW, dev: env.WEB_DEV, www: env.WEB_WWW_PROD },\n          admin: { prod: env.ADMIN_PROD, preview: env.ADMIN_PREVIEW, dev: env.ADMIN_DEV },\n          api: { prod: env.API_PROD, preview: env.API_PREVIEW, dev: env.API_DEV }\n        },\n        pages: { web: env.WEB_PROJECT, admin: env.ADMIN_PROJECT },\n        worker: env.API_WORKER,\n        resources: {\n          d1: { prod: env.D1_PROD, preview: env.D1_PREVIEW, dev: env.D1_DEV },\n          kv: { config: [env.KV_CONFIG_PROD,env.KV_CONFIG_PREVIEW,env.KV_CONFIG_DEV],\n                cache:  [env.KV_CACHE_PROD,env.KV_CACHE_PREVIEW,env.KV_CACHE_DEV],\n                session:[env.KV_SESSION_PROD,env.KV_SESSION_PREVIEW,env.KV_SESSION_DEV] },\n          r2: { prod: env.R2_PROD, preview: env.R2_PREVIEW, dev: env.R2_DEV },\n          queues: { prod: env.QUEUE_PROD, preview: env.QUEUE_PREVIEW, dev: env.QUEUE_DEV }\n        },\n        access: {\n          emails: env.ALLOWED_EMAILS,\n          domains: env.ALLOWED_DOMAINS\n        },\n        cors: env.CORS_ORIGINS\n      }",
+      "expression": "{\n        now: (now|tojson),\n        domains: {\n          web: { prod: env.WEB_PROD, preview: env.WEB_PREVIEW, dev: env.WEB_DEV, www: env.WEB_WWW_PROD },\n          api: { prod: env.API_PROD, preview: env.API_PREVIEW, dev: env.API_DEV }\n        },\n        pages: { web: env.WEB_PROJECT },\n        worker: env.API_WORKER,\n        resources: {\n          d1: { prod: env.D1_PROD, preview: env.D1_PREVIEW, dev: env.D1_DEV },\n          kv: { config: [env.KV_CONFIG_PROD,env.KV_CONFIG_PREVIEW,env.KV_CONFIG_DEV],\n                cache:  [env.KV_CACHE_PROD,env.KV_CACHE_PREVIEW,env.KV_CACHE_DEV],\n                session:[env.KV_SESSION_PROD,env.KV_SESSION_PREVIEW,env.KV_SESSION_DEV] },\n          r2: { prod: env.R2_PROD, preview: env.R2_PREVIEW, dev: env.R2_DEV },\n          queues: { prod: env.QUEUE_PROD, preview: env.QUEUE_PREVIEW, dev: env.QUEUE_DEV }\n        },\n        access: {\n          emails: env.ALLOWED_EMAILS,\n          domains: env.ALLOWED_DOMAINS\n        },\n        cors: env.CORS_ORIGINS\n      }",
       "save_as": {
         "MANIFEST_JSON": "."
       }

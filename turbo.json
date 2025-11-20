@@ -5,7 +5,6 @@
       "dependsOn": ["^build"],
       "outputs": [
         "apps/goldshore-web/dist/**",
-        "apps/goldshore-admin/dist/**",
         "apps/goldshore-api/dist/**",
         "packages/**/dist/**",
         "dist/**"
