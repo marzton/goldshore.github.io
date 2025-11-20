@@ -1,0 +1,8 @@
+# AGENT_SCOPE.yaml
+# This file defines the boundaries for the AI agent.
+
+# Paths that the agent is not allowed to modify.
+forbidden:
+  - ".git/"
+  - ".github/"
+  - "infra/"

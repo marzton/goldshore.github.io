@@ -8,7 +8,6 @@ Gold Shore keeps the marketing site, Cloudflare Workers router, scheduled jobs, 
 goldshore/
 ├─ apps/
 │  ├─ goldshore-web/       # Astro marketing site and content
-│  ├─ goldshore-admin/     # Access-gated admin console
 │  ├─ goldshore-api/       # Cloudflare Worker powering API traffic
 │  └─ goldshore-agent/     # Background worker + queues
 ├─ packages/
@@ -120,7 +119,6 @@ This repository is a monorepo containing the applications and packages that powe
 The repository is organized into the following workspaces:
 
 -   `apps/goldshore-web`: The main marketing website, built with Astro.
--   `apps/goldshore-admin`: The admin dashboard, also built with Astro and protected by Cloudflare Access.
 -   `apps/goldshore-api`: The Cloudflare Worker that serves as the API for the platform.
 -   `apps/goldshore-agent`: A Cloudflare Worker for background jobs and queues.
 -   `packages/ui`: Shared UI components and design tokens.
@@ -158,7 +156,7 @@ To start the development servers for all the applications in parallel, run the f
 pnpm run dev
 ```
 
-This will start the Astro development server for the `web` and `admin` apps, and the Wrangler development server for the `api` and `agent` workers.
+This will start the Astro development server for the `web` app, and the Wrangler development server for the `api` and `agent` workers.
 
 ## Workspace Scripts
 
@@ -180,7 +178,7 @@ To build all the applications for production, run the following command from the
 pnpm run build
 ```
 
-This will create optimized builds for the `web` and `admin` apps in their respective `dist` directories, and build the `api` and `agent` workers.
+This will create optimized builds for the `web` app in its `dist` directory, and build the `api` and `agent` workers.
 
 ### Deployment
 
@@ -188,7 +186,7 @@ Deployment is handled automatically by the CI/CD pipeline, which is configured i
 
 1.  The applications are built and tested.
 2.  The `goldshore-api` and `goldshore-agent` workers are deployed to Cloudflare Workers.
-3.  The `goldshore-web` and `goldshore-admin` applications are deployed to Cloudflare Pages.
+3.  The `goldshore-web` application is deployed to Cloudflare Pages.
 
 For manual deployments, you can use the `wrangler` CLI. Refer to the `wrangler.toml` files within each app for configuration details.
 

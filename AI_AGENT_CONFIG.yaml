@@ -1,0 +1,6 @@
+# AI_AGENT_CONFIG.yaml
+# Configuration for the AI agent.
+
+repo_lock_mode: true
+respond_only_within_scope: true
+enforce_global_rules: true

@@ -23,15 +23,14 @@ Before running the plan inside Codex, make sure the following secrets are config
 3. Execute the plan. It is idempotent and safe to re-run.
 4. Ensure the repo configuration matches the bindings expected by the plan:
    - `WEB_PROJECT=goldshore-web`
-  - `ADMIN_PROJECT=goldshore-admin`
    - `API_WORKER=goldshore-api`
-  - Pages builds output to `apps/goldshore-web/dist` and `apps/goldshore-admin/dist`
+  - Pages builds output to `apps/goldshore-web/dist`
    - Wrangler environments manage D1, KV, R2, Queues, and Durable Object migrations per environment.
 
 ## Outputs
-- DNS CNAMEs for prod/preview/dev of Web, Admin, and API.
-- Pages custom domain attachments for Web and Admin projects.
-- Zero Trust Access apps and policies for Admin and API surfaces.
+- DNS CNAMEs for prod/preview/dev of Web and API.
+- Pages custom domain attachments for Web projects.
+- Zero Trust Access apps and policies for API surfaces.
 - KV namespaces for configuration, cache, and sessions per environment.
 - Health checks for all surfaces (prod/preview/dev).
 - KV-stored manifest snapshot at key `infra/latest` in the `GOLDSHORE_MANIFEST` namespace.

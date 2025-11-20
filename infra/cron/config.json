@@ -18,7 +18,6 @@
     "zone_id_env": "CF_ZONE_ID",
     "checks": [
       { "type": "pages_build_status", "project": "goldshore-web" },
-      { "type": "pages_build_status", "project": "goldshore-admin" },
       {
         "type": "pages_domain_recovery",
         "targets": [
@@ -32,11 +31,6 @@
             "host": "https://www.goldshore.org",
             "domains": ["www.goldshore.org"]
           },
-          {
-            "project": "goldshore-admin",
-            "host": "https://admin.goldshore.org",
-            "domains": ["admin.goldshore.org"]
-          }
         ]
       },
       { "type": "worker_health", "script": "goldshore-api", "path": "/health" },
@@ -45,7 +39,6 @@
         "required": [
           { "name": "goldshore.org", "type": "CNAME" },
           { "name": "api.goldshore.org", "type": "CNAME" },
-          { "name": "admin.goldshore.org", "type": "CNAME" },
           { "name": "api-preview.goldshore.org", "type": "CNAME" },
           { "name": "api-dev.goldshore.org", "type": "CNAME" },
           { "name": "_dmarc.goldshore.org", "type": "TXT", "contains": "v=DMARC1; p=reject" },
@@ -62,7 +55,6 @@
   "rules": {
     "open_conflicts": { "auto_fix_strategy": "rebase-onto-main", "open_pr_comment": true },
     "pages_output_dirs": [
-      { "repo": "goldshore-admin", "path": "apps/goldshore-admin/dist" },
       { "repo": "goldshore-web", "path": "apps/goldshore-web/dist" }
     ],
     "sensitive": {
