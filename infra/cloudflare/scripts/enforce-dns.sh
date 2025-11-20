@@ -12,7 +12,6 @@ CONTENT_TYPE_HEADER="Content-Type: application/json"
 RECORDS=(
   # type|name|content|proxied
   "CNAME|goldshore.org|goldshore-web.pages.dev|true"
-  "CNAME|admin.goldshore.org|goldshore-admin.pages.dev|true"
   "CNAME|api.goldshore.org|goldshore-api.workers.dev|true"
   "TXT|_dmarc.goldshore.org|v=DMARC1; p=reject; rua=mailto:ops@goldshore.org; ruf=mailto:ops@goldshore.org; fo=1|false"
   "TXT|goldshore.org|v=spf1 include:_spf.google.com -all|false"

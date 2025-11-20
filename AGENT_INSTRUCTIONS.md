@@ -3,7 +3,6 @@
 ## Architecture
 
 - API: `apps/goldshore-api` (Cloudflare Worker, Hono)
-- Admin Dashboard: `apps/goldshore-admin` (Astro)
 - Marketing Site: `apps/goldshore-web` (Astro)
 - AI Gateway: `apps/goldshore-agent`
 - Shared types: `packages/schema`
@@ -21,10 +20,6 @@
 ### `apps/goldshore-api`
 
 - 2025-11-19 – `GET /v1/users/{id}` added. See `apps/goldshore-api/openapi.json`.
-
-### `apps/goldshore-admin`
-
-- 2025-11-19 – User detail panel consumes `GET /v1/users/{id}` and displays `User` type.
 
 ### `apps/goldshore-web`
 

@@ -1,0 +1,24 @@
+name: Scope Check
+
+on:
+  pull_request:
+
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Block forbidden directories
+        run: |
+          FORBIDDEN=$(grep -oP '(?<=forbidden:).*' AGENT_SCOPE.yaml || true)
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+
+          for path in $FORBIDDEN; do
+            if echo "$CHANGED" | grep -q "$path"; then
+              echo "::error::Modification in forbidden path: $path"
+              exit 1
+            fi
+          done
+
+          echo "Scope check passed."

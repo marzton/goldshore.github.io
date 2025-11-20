@@ -7,7 +7,6 @@ This guide provides a comprehensive overview of the GoldShore repository, includ
 The GoldShore repository is a monorepo built with npm workspaces. It contains the following applications and packages:
 
 -   **`apps/goldshore-web`**: The main marketing website, built with Astro.
--   **`apps/goldshore-admin`**: The admin dashboard, also built with Astro and protected by Cloudflare Access.
 -   **`apps/goldshore-api`**: The Cloudflare Worker that serves as the API for the platform.
 -   **`packages/*`**: Shared packages and libraries used across the different applications.
 
@@ -15,7 +14,7 @@ The GoldShore repository is a monorepo built with npm workspaces. It contains th
 
 ### 2.1. Layout and Component Planning
 
--   New Astro pages should be created in `apps/goldshore-web/src/pages` or `apps/goldshore-admin/src/pages`.
+-   New Astro pages should be created in `apps/goldshore-web/src/pages`.
 -   Reusable components should be placed in the `src/components` directory of the respective application.
 -   The design system is based on Tailwind CSS.
 
@@ -42,12 +41,11 @@ The GoldShore repository is a monorepo built with npm workspaces. It contains th
 
 -   The CI/CD pipeline is defined in `.github/workflows/ci.yml`.
 -   When changes are pushed to the `main` branch, the pipeline automatically builds and deploys the applications to Cloudflare.
--   The `web` and `admin` applications are deployed to Cloudflare Pages.
+-   The `web` application is deployed to Cloudflare Pages.
 -   The `api-worker` is deployed to Cloudflare Workers.
 
 ### 3.3. Security and Observability
 
--   The `admin` application is protected by Cloudflare Access.
 -   The API worker implements CORS and rate limiting.
 -   Observability is enabled for the worker, and logs and analytics are available in the Cloudflare dashboard.
 
@@ -59,7 +57,6 @@ The GoldShore repository is a monorepo built with npm workspaces. It contains th
 ## 5. Domain Architecture and DNS
 
 -   **`goldshore.org`**: The main marketing website.
--   **`admin.goldshore.org`**: The admin dashboard.
 -   **`api.goldshore.org`**: The API worker.
 -   DNS is managed in the Cloudflare dashboard. The `infra/scripts/enforce-dns.sh` script can be used to assert that the correct DNS records are in place.
 
