@@ -1,0 +1,44 @@
+name: Cloudflare Pages CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+    paths:
+      - "apps/goldshore-web/**"
+      - "AGENT_SCOPE.yaml"
+      - ".github/workflows/pages-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Site
+        run: npm run build -w @goldshore/web
+
+      - name: Validate Output Directory
+        run: |
+          if [ ! -d "apps/goldshore-web/dist" ]; then
+            echo "::error::No dist/ output found!"
+            exit 1
+          fi
+          echo "Build output validated."
+
+  notify:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify success
+        run: echo "Cloudflare Pages build succeeded."
