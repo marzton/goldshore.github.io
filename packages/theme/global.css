@@ -1,0 +1,10 @@
+@import './tokens.css';
+ :root {
+   color-scheme: dark;
+ }
+ body {
+   margin: 0;
+   background: var(--gs-bg);
+   font-family: var(--gs-font-sans);
+   color: var(--gs-text-primary);
+ }
