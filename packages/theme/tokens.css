@@ -1,0 +1,24 @@
+:root {
+   --gs-font-sans: 'Inter', system-ui, sans-serif;
+   --gs-font-mono: 'JetBrains Mono', monospace;
+   --gs-bg: #050815;
+   --gs-bg-panel: #0a0f1c;
+   --gs-bg-hover: #0f1729;
+   --gs-border-light: rgba(255,255,255,0.08);
+   --gs-border-heavy: rgba(255,255,255,0.14);
+   --gs-text-primary: #e6ecf8;
+   --gs-text-secondary: #94a4c0;
+   --gs-text-muted: #53607c;
+   --status-ok: #A4FFAB;
+   --status-warn: #FFD654;
+   --status-critical: #FF4A4A;
+   --gs-radius-sm: 4px;
+   --gs-radius-md: 8px;
+   --gs-radius-lg: 12px;
+   --gs-space-1: 4px;
+   --gs-space-2: 8px;
+   --gs-space-3: 12px;
+   --gs-space-4: 16px;
+   --gs-space-6: 24px;
+   --gs-gradient-titanium: linear-gradient(135deg,#c8ff9b,#9ecb77,#6a9150,#384f2d);
+ }
