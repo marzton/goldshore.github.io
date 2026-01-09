@@ -28,8 +28,8 @@ See the [Gold Shore Web & Worker Implementation Guide](./GOLDSHORE_IMPLEMENTATIO
 ### Astro marketing site (`apps/goldshore-web`)
 - Built with Astro 4.
 - Shared theme lives in `apps/goldshore-web/src/styles/theme.css`; layouts and reusable components are in `apps/goldshore-web/src/components/`.
-- Development: `npm run dev` (from repo root or inside `apps/goldshore-web`).
-- Production build: `npm run build` – optimises images first, then runs `astro build`.
+- Development: `pnpm run dev` (from repo root or inside `apps/goldshore-web`).
+- Production build: `pnpm run build` – optimises images first, then runs `astro build`.
 
 ### Worker router (`src/router.js`)
 - Receives all Cloudflare Worker traffic and proxies static assets to the correct Pages deployment (`production`, `preview`, `dev`).
@@ -41,33 +41,33 @@ See the [Gold Shore Web & Worker Implementation Guide](./GOLDSHORE_IMPLEMENTATIO
 - Requires `TURNSTILE_SECRET` and `FORMSPREE_ENDPOINT` environment variables in each Pages environment (`.dev.vars` locally).
 
 ### Image tooling (`packages/image-tools`)
-- `npm run build` executes `packages/image-tools/process-images.mjs` to emit AVIF/WEBP variants prior to the Astro build.
+- `pnpm run build` executes `packages/image-tools/process-images.mjs` to emit AVIF/WEBP variants prior to the Astro build.
 - The script depends on `sharp`; install dependencies with `npm install` before running.
 
 ## Local development
 
-1. Install Node.js 18+.
+1. Install Node.js 22+.
 2. Install workspace dependencies:
    ```bash
-   npm install
+   pnpm install
    ```
 3. Start the Astro dev server:
    ```bash
-   npm run dev
+   pnpm run dev
    ```
 4. Build for production (images + Astro output):
    ```bash
-   npm run build
+   pnpm run build
    ```
 
 ## Deployment commands
 
 | Command | Description |
 | --- | --- |
-| `npm run deploy:prod` | Deploy the Worker using the `production` environment in `wrangler.worker.toml`. |
-| `npm run deploy:preview` | Deploy the Worker to the preview environment. |
-| `npm run deploy:dev` | Deploy the Worker to the dev environment. |
-| `npm run qa` | Execute the local QA helper (`.github/workflows/local-qa.mjs`). |
+| `pnpm run deploy:prod` | Deploy the Worker using the `production` environment in `wrangler.worker.toml`. |
+| `pnpm run deploy:preview` | Deploy the Worker to the preview environment. |
+| `pnpm run deploy:dev` | Deploy the Worker to the dev environment. |
+| `pnpm run qa` | Execute the local QA helper (`.github/workflows/local-qa.mjs`). |
 
 ## `/api/gpt` proxy handler
 
@@ -141,7 +141,7 @@ The repository is organized into the following workspaces:
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/GoldShore/goldshore.git
+    git clone https://github.com/goldshore/goldshore.github.io.git
     ```
 2.  Install the dependencies from the root of the repository:
     ```bash
