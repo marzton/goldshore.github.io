@@ -2,7 +2,7 @@
   "name": "goldshore",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "npm@11.4.2",
+  "packageManager": "pnpm@9.1.0",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -13,27 +13,14 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "deploy": "turbo run deploy",
-    "dev:api": "wrangler dev --config apps/api-worker/wrangler.toml",
-    "build:api": "wrangler build --config apps/api-worker/wrangler.toml",
-    "deploy:api": "wrangler deploy --config apps/api-worker/wrangler.toml",
-    "enforce:dns": "bash infra/scripts/enforce-dns.sh",
-    "agent:poll": "tsx infra/cron/agent_poll.ts",
-    "agent:dryrun": "DRY_RUN=1 tsx infra/cron/agent_poll.ts",
-    "validate:codex-config": "tsx infra/limits/validate_codex_config.ts"
-  },
-  "dependencies": {
-    "yaml": "^2.6.0"
+    "dev:api": "wrangler dev --config apps/goldshore-api/wrangler.toml",
+    "build:api": "wrangler build --config apps/goldshore-api/wrangler.toml",
+    "deploy:api": "wrangler deploy --config apps/goldshore-api/wrangler.toml"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241022.0",
-    "astro": "^4.13.0",
-    "eslint": "^9.11.0",
-    "octokit": "^4.0.2",
-    "tslib": "^2.8.1",
-    "turbo": "^2.1.1",
-    "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
-    "wrangler": "^3.82.0",
-    "@types/node": "^22.9.0"
+    "eslint": "^9.39.1",
+    "turbo": "^2.6.1",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.47.0"
   }
 }

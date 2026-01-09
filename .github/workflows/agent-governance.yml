@@ -1,0 +1,73 @@
+name: Agent Governance Enforcement
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate-governance:
+    name: Validate Repo Lock & Scope Rules
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Validate Required Governance Files
+        run: |
+          echo "Checking required governance files..."
+          REQUIRED_FILES=(
+            "AGENT_SCOPE.yaml"
+            "AGENT_GLOBAL_RULES.md"
+            "AI_AGENT_CONFIG.yaml"
+            "AI_AGENT_ENFORCE.js"
+          )
+
+          for f in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "::error file=$f::Missing governance file: $f"
+              exit 1
+            fi
+          done
+
+          echo "All required governance files found."
+
+      - name: Enforce Repo Lock Mode
+        run: |
+          if ! grep -q "repo_lock_mode: true" AI_AGENT_CONFIG.yaml; then
+            echo "::error::Repo Lock Mode is missing or disabled in AI_AGENT_CONFIG.yaml"
+            exit 1
+          fi
+          echo "Repo Lock Mode validated."
+
+      - name: Enforce Scope Rule Presence
+        run: |
+          if ! grep -q "respond_only_within_scope: true" AI_AGENT_CONFIG.yaml; then
+            echo "::error::Scope rules missing in AI_AGENT_CONFIG.yaml"
+            exit 1
+          fi
+          echo "Scope rules validated."
+
+      - name: Enforce Global Rule Loading
+        run: |
+          if ! grep -q "enforce_global_rules: true" AI_AGENT_CONFIG.yaml; then
+            echo "::error::Global rule enforcement missing"
+            exit 1
+          fi
+          echo "Global rule enforcement validated."
+
+      - name: Validate Forbidden Paths Not Modified
+        run: |
+          echo "Checking for forbidden path modifications..."
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+
+          if echo "$CHANGED" | grep -q "\.\./"; then
+            echo "::error::Forbidden cross-repo modification detected!"
+            exit 1
+          fi
+
+          echo "No cross-repo contamination detected."
+
+    outputs:
+      governance_passed: "true"

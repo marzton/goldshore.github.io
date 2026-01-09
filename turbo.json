@@ -1,7 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [
+        "apps/goldshore-web/dist/**",
+        "apps/goldshore-api/dist/**",
+        "packages/**/dist/**",
+        "dist/**"
+      ]
+    },
     "dev": {},
     "lint": {},
     "typecheck": {}

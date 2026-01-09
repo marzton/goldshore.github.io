@@ -1,6 +1,9 @@
 {
   "files": [],
-  "references": [{ "path": "./apps/api-worker" }],
+  "references": [
+    { "path": "./apps/goldshore-api" },
+    { "path": "./packages/schema" }
+  ],
   "compilerOptions": {
     "composite": true,
     "skipLibCheck": true

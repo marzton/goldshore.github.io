@@ -1,0 +1,17 @@
+name: Safe Merge Gate
+
+on:
+  pull_request:
+
+jobs:
+  governance:
+    uses: ./.github/workflows/agent-governance.yml
+
+  scope:
+    uses: ./.github/workflows/scope-check.yml
+
+  ready:
+    runs-on: ubuntu-latest
+    needs: [governance, scope]
+    steps:
+      - run: echo "All agent and governance checks passed — merge allowed."

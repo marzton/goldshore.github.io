@@ -1,11 +1,21 @@
 const CF_API = "https://api.cloudflare.com/client/v4";
-const tok = process.env.CF_API_TOKEN!;
-const acc = process.env.CF_ACCOUNT_ID!;
-const zone = process.env.CF_ZONE_ID!;
+
+function requireEnv(name: string) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+const getToken = () => requireEnv("CF_API_TOKEN");
+const getAccount = () => requireEnv("CF_ACCOUNT_ID");
+const getZone = () => requireEnv("CF_ZONE_ID");
 
 type RequestInitWithHeaders = RequestInit & { headers?: Record<string, string> };
 
 async function cfFetch<T>(path: string, init?: RequestInitWithHeaders): Promise<T> {
+  const tok = getToken();
   const res = await fetch(`${CF_API}${path}`, {
     ...init,
     headers: {
@@ -21,17 +31,20 @@ async function cfFetch<T>(path: string, init?: RequestInitWithHeaders): Promise<
 
 export async function getPagesProjectBuildStatus(project: string) {
   type Build = { latest_stage?: { status?: string } };
+  const acc = getAccount();
   const builds = await cfFetch<Build[]>(`/accounts/${acc}/pages/projects/${project}/deployments`);
   return builds[0]?.latest_stage?.status ?? "unknown";
 }
 
 export async function getDNSRecords() {
   type Rec = { id: string; name: string; type: string; content: string };
+  const zone = getZone();
   return await cfFetch<Rec[]>(`/zones/${zone}/dns_records?per_page=200`);
 }
 
 export async function getWorkerBindings(script: string) {
   type Binding = { name: string; type: string };
+  const acc = getAccount();
   return await cfFetch<Binding[]>(`/accounts/${acc}/workers/scripts/${script}/bindings`);
 }
 
@@ -54,7 +67,11 @@ function pickPrimaryRoute(routes: WorkerRoute[]): WorkerRoute {
   return scored[0]!.route;
 }
 
-function buildRouteURL(pattern: string, routePath: string): string {
+function buildRouteURL(
+  pattern: string,
+  routePath: string,
+  domainOverride?: string
+): { url: string; host: string } {
   const ensureScheme = (input: string) => (input.includes("://") ? input : `https://${input}`);
   const sanitizeHostname = (hostname: string) => {
     const replaced = hostname.replace(/\*+/g, "wildcard");
@@ -84,27 +101,77 @@ function buildRouteURL(pattern: string, routePath: string): string {
     path = `${path}/`;
   }
 
-  const base = new URL(`${withScheme.slice(0, schemeEnd)}${safeHost}${path}`);
+  const baseHost = (() => {
+    if (!domainOverride) {
+      return {
+        origin: `${withScheme.slice(0, schemeEnd)}${safeHost}`,
+        host: safeHost
+      };
+    }
+    const overrideWithScheme = ensureScheme(domainOverride);
+    const overrideURL = new URL(overrideWithScheme);
+    return {
+      origin: `${overrideURL.protocol}//${overrideURL.host}`,
+      host: overrideURL.host
+    };
+  })();
+
+  const base = new URL(`${baseHost.origin}${path}`);
   const sanitizedPath = routePath.startsWith("/") ? routePath.slice(1) : routePath;
-  return new URL(sanitizedPath, base).toString();
+  return { url: new URL(sanitizedPath, base).toString(), host: baseHost.host };
 }
 
 export async function fetchWorkerRoute(
   script: string,
   routePath: string,
-  init?: RequestInitWithHeaders
+  init?: RequestInitWithHeaders,
+  domainOverride?: string
 ): Promise<{ url: string; response: Response }> {
+  const acc = getAccount();
   const routes = await cfFetch<WorkerRoute[]>(`/accounts/${acc}/workers/scripts/${script}/routes`);
   if (!routes.length) {
     throw new Error(`No routes configured for Worker ${script}`);
   }
   const route = pickPrimaryRoute(routes);
-  const url = buildRouteURL(route.pattern, routePath);
+  const { url, host } = buildRouteURL(route.pattern, routePath, domainOverride);
   const { headers: initHeaders, ...rest } = init ?? {};
   const headers: Record<string, string> = {
-    "user-agent": "goldshore-agent/worker-health-check",
-    ...(initHeaders ?? {})
+    "user-agent": "goldshore-agent/worker-health-check"
   };
+  if (initHeaders) {
+    Object.assign(headers, initHeaders);
+  }
+  if (domainOverride) {
+    headers.host = host;
+  }
   const response = await fetch(url, { ...rest, headers });
   return { url, response };
+}
+
+export async function bindPagesDomain(project: string, domain: string) {
+  type DomainResponse = { domain: string; status: string };
+  const acc = getAccount();
+  return await cfFetch<DomainResponse>(`/accounts/${acc}/pages/projects/${project}/domains/${domain}`, {
+    method: "PUT",
+    body: JSON.stringify({})
+  });
+}
+
+export async function triggerPagesDeployment(project: string) {
+  type Deployment = { id: string };
+  const acc = getAccount();
+  return await cfFetch<Deployment>(`/accounts/${acc}/pages/projects/${project}/deployments`, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
+export async function probeHttpsHost(host: string, init?: RequestInitWithHeaders) {
+  const normalized = host.startsWith("http://") || host.startsWith("https://") ? host : `https://${host}`;
+  const { headers: initHeaders, ...rest } = init ?? {};
+  const headers: Record<string, string> = {
+    "user-agent": "goldshore-agent/pages-domain-probe",
+    ...(initHeaders ?? {})
+  };
+  return await fetch(normalized, { method: "GET", ...rest, headers });
 }

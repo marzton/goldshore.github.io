@@ -6,9 +6,20 @@ _site/
 .bundle/
 vendor/
 .dev.vars
+
+# Node projects managed in this monorepo
+node_modules/
+**/node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+npm-debug.log*
+dist/
+**/.astro/
 # Generated package outputs
 packages/*/dist/
 apps/api-worker/dist/
+apps/api/dist/
 node_modules/
 **/node_modules/
 pnpm-lock.yaml
@@ -18,3 +29,5 @@ apps/web/dist/
 .pnpm-store/
 .wrangler/
 .turbo/
+coverage/
+*.tsbuildinfo

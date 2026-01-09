@@ -1,3 +1,4 @@
+# NOTE: Mirrored from infra/github/actions/workflows/codex-budget-watch.yml
 name: Codex Budget Watch
 
 on:
